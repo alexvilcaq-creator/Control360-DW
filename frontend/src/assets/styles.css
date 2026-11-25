@@ -313,6 +313,41 @@ select.mini-select { min-height: 31px; padding: 5px 5px 5px 8px; font-size: 11px
 .map-cell:hover, .map-cell.selected { border-color: var(--brand); }
 .map-cell.selected { box-shadow: 0 0 0 2px var(--brand-soft); background: var(--blue-bg); }
 .map-cell.matching { border-color: var(--green-text); background: var(--green-bg); }
+.warehouse-route {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+  padding: 12px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft);
+}
+.route-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.route-heading > span { width: 35px; height: 35px; display: grid; place-items: center; flex: none; border-radius: 8px; color: var(--blue-text); background: var(--blue-bg); }
+.route-heading h3 { margin: 0; font-size: 13px; font-weight: 750; }
+.route-heading strong { display: block; color: var(--brand); font-size: 11px; overflow-wrap: anywhere; }
+.route-steps { margin: 0; padding-left: 18px; list-style: decimal; color: var(--muted); font-size: 11px; }
+.route-steps li { padding-left: 2px; margin-top: 5px; }
+.route-steps li::marker { color: var(--brand); font-weight: 700; }
+.route-steps strong { color: var(--ink); }
+.route-plan { --route-line: var(--brand); --route-corridor: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 8px 9px; min-width: 0; }
+.route-start { position: relative; min-height: 27px; display: flex; align-items: center; gap: 7px; width: fit-content; color: var(--brand); font-size: 10px; font-weight: 720; }
+.route-start::before { content: ""; position: absolute; width: 2px; height: 50%; left: calc(var(--route-corridor) / 2 - 1px); top: 50%; background: var(--route-line); }
+.route-start i, .route-junction i { display: block; position: relative; margin: 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--route-line); }
+.route-start i { margin: 0 calc((var(--route-corridor) - 7px) / 2); }
+.route-plan-row { display: grid; grid-template-columns: var(--route-corridor) minmax(36px, auto) minmax(0, 1fr); align-items: center; min-height: 25px; color: var(--muted); }
+.route-junction { display: grid; align-items: center; height: 100%; position: relative; }
+.route-junction::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--line); }
+.route-junction i { background: var(--line); }
+.route-traversed .route-junction::before, .route-traversed .route-junction i { background: var(--route-line); }
+.route-target-row .route-junction::before { background: linear-gradient(180deg, var(--route-line) 50%, var(--line) 50%); }
+.route-zone { position: relative; font-size: 10px; padding: 0 5px 0 0; }
+.route-target-row .route-zone { font-weight: 720; color: var(--brand); }
+.route-target-row .route-zone::before { content: ""; position: absolute; left: calc(var(--route-corridor) / -2); right: 0; top: calc(50% - 1px); height: 2px; background: var(--route-line); }
+.route-zone > span { position: relative; background: var(--surface); padding: 0 3px; }
+.route-shelf-row { display: flex; align-items: center; }
+.route-shelf { display: grid; flex: 1; min-width: 0; place-items: center; position: relative; }
+.route-shelf i { width: min(12px, 70%); height: 8px; border: 1px solid var(--line); background: var(--surface-soft); border-radius: 2px; z-index: 1; }
+.route-segment::before, .route-end::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: var(--route-line); }
+.route-end::before { right: 50%; }
+.route-end svg { position: relative; color: var(--brand); background: var(--surface); border-radius: 50%; }
+.map-cell[aria-current="location"] { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+
 .map-legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 11px; }
 .map-products { max-height: 520px; overflow-y: auto; }
 .map-products a { min-height: 62px; display: grid; grid-template-columns: 46px minmax(0,1fr) auto 14px; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding: 6px 3px; border-radius: 6px; }
@@ -415,6 +450,7 @@ select.mini-select { min-height: 31px; padding: 5px 5px 5px 8px; font-size: 11px
   .section-title h2 { font-size: 14px; }
   .text-link, .button { font-size: 11px; }
   .map-zone { grid-template-columns: 1fr; }
+  .warehouse-route { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .login-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .login-side { min-height: 245px; padding: 20px; }
   .login-intro { padding: 40px 0 0; }
