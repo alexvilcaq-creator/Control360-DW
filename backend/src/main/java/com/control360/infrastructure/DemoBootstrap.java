@@ -58,15 +58,26 @@ public class DemoBootstrap implements ApplicationRunner {
                 throw new IllegalStateException("ADMIN_USERNAME debe identificar una cuenta de administrador");
             if (demo && !administrator.username().equals("demo_vendedor") && !administrator.username().equals("demo_almacen")) {
                 if (store.all(Category.class).isEmpty() && store.all(Worker.class).isEmpty()) seed(administrator);
-                var worker = store.all(Worker.class).stream().filter(w -> w.document().equals("DEMO-01")).findFirst();
-                if (!sellerPassword.isBlank() && store.user("demo_vendedor").isEmpty())
-                    store.save(new User(null, "demo_vendedor", encode(sellerPassword, "DEMO_SELLER_PASSWORD"), Role.VENDEDOR, true, null));
-                if (worker.isPresent() && !warehousePassword.isBlank() && store.user("demo_almacen").isEmpty())
-                    store.save(new User(null, "demo_almacen", encode(warehousePassword, "DEMO_WAREHOUSE_PASSWORD"),
-                            Role.ALMACEN, true, worker.get().id()));
+                demoEmployee("demo_vendedor", Role.VENDEDOR, sellerPassword, "DEMO_SELLER_PASSWORD", "DEMO-10");
+                demoEmployee("demo_almacen", Role.ALMACEN, warehousePassword, "DEMO_WAREHOUSE_PASSWORD", "DEMO-01");
             }
             return true;
         });
+    }
+
+    private void demoEmployee(String username, Role role, String password, String setting, String document) {
+        if (password.isBlank()) return;
+        User existing = store.user(username).orElse(null);
+        if (existing != null && (existing.role() != role || existing.workerId() != null)) return;
+        store.all(Worker.class).stream().filter(worker -> worker.document().equals(document)).findFirst()
+                .filter(worker -> store.all(User.class).stream().noneMatch(account -> worker.id().equals(account.workerId())))
+                .ifPresent(worker -> {
+                    if (existing == null) {
+                        store.save(new User(null, username, encode(password, setting), role, true, worker.id()));
+                    } else {
+                        store.save(new User(existing.id(), existing.username(), existing.passwordHash(), role, existing.active(), worker.id()));
+                    }
+                });
     }
 
     private String encode(String password, String setting) {
@@ -98,7 +109,7 @@ public class DemoBootstrap implements ApplicationRunner {
         for (int i = 0; i < workers.size(); i++) {
             String[] name = workers.get(i).split(" ");
             team.add(store.save(new Worker(null, name[0], name[1], "DEMO-%02d".formatted(i + 1),
-                    "equipo" + (i + 1) + "@example.com", i < 8 ? "Operario de almacén" : "Auxiliar", true, shift.id(), date.minusDays(1))));
+                    "equipo" + (i + 1) + "@example.com", i == 9 ? "Vendedor" : i < 8 ? "Operario de almacén" : "Auxiliar", true, shift.id(), date.minusDays(1))));
             if (i > 0 && i < 9) {
                 store.save(new Attendance(null, team.get(i).id(), shift.id(), date, date.atTime(0, i * 2),
                         null, date.atTime(23, 59), i == 8 ? 16 : 0, 0, 0));

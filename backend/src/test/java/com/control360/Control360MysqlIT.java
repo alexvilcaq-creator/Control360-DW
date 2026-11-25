@@ -88,7 +88,7 @@ class Control360MysqlIT {
             var worker = worker("a", shift.id());
             var second = worker("b", shift.id());
             admin = store.save(new User(null, "admin-" + tag, hash, Role.ADMIN, true, null));
-            seller = store.save(new User(null, "seller-" + tag, hash, Role.VENDEDOR, true, null));
+            seller = store.save(new User(null, "seller-" + tag, hash, Role.VENDEDOR, true, worker("s", shift.id()).id()));
             picker = store.save(new User(null, "picker-" + tag, hash, Role.ALMACEN, true, worker.id()));
             secondPicker = store.save(new User(null, "picker2-" + tag, hash, Role.ALMACEN, true, second.id()));
             category = store.save(new Category(null, "Categoría " + tag));
@@ -117,6 +117,80 @@ class Control360MysqlIT {
         mvc.perform(get("/api/reportes/resumen").session(session)).andExpect(status().isForbidden());
         mvc.perform(post("/api/auth/logout").session(session).with(csrf())).andExpect(status().isNoContent());
         mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void administratorCreatesEmployeeAccountsAndDeactivationInvalidatesExistingSessions() throws Exception {
+        var adminSession = login(admin);
+        var shiftId = store.find(Worker.class, seller.workerId()).orElseThrow().shiftId();
+        for (var role : List.of(Role.VENDEDOR, Role.ALMACEN)) {
+            var employee = store.write(() -> worker(role == Role.VENDEDOR ? "v" : "p", shiftId));
+            String username = "new-" + role.name().toLowerCase(java.util.Locale.ROOT) + "-" + tag;
+            var identifier = body(post("/api/usuarios").session(adminSession).with(csrf()),
+                    Map.of("username", username, "password", PASSWORD, "role", role.name(), "active", true, "workerId", employee.id()));
+            mvc.perform(identifier).andExpect(status().isCreated()).andExpect(jsonPath("$.workerId").value(employee.id()))
+                    .andExpect(jsonPath("$.passwordHash").doesNotExist());
+            var created = store.user(username).orElseThrow();
+            assertTrue(encoder.matches(PASSWORD, created.passwordHash()));
+            assertNotEquals(PASSWORD, created.passwordHash());
+            var employeeSession = login(created);
+            mvc.perform(get("/api/usuarios").session(employeeSession)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/reportes/resumen").session(employeeSession)).andExpect(status().isForbidden());
+            mvc.perform(body(put("/api/usuarios/{id}", created.id()).session(adminSession).with(csrf()),
+                            Map.of("username", username, "role", role.name(), "active", false, "workerId", employee.id())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
+            mvc.perform(get("/api/productos").session(employeeSession)).andExpect(status().isUnauthorized());
+            mvc.perform(body(post("/api/auth/login").with(csrf()), Map.of("username", username, "password", PASSWORD)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    void sellerMarksOnlyOwnAttendanceAndAdministratorCorrectionsKeepAuditHistory() throws Exception {
+        var sellerSession = login(seller);
+        var adminSession = login(admin);
+        var pickerSession = login(picker);
+        mvc.perform(get("/api/asistencias/estado").session(sellerSession))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.workerId").value(seller.workerId()));
+        mvc.perform(body(post("/api/asistencias/entradas").session(sellerSession).with(csrf()),
+                Map.of("workerId", picker.workerId()))).andExpect(status().isForbidden());
+        var result = mvc.perform(body(post("/api/asistencias/entradas").session(sellerSession).with(csrf()), Map.of()))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.lateMinutes").value(25)).andReturn();
+        long id = parse(result).get("id").asLong();
+        mvc.perform(get("/api/asistencias/estado").session(sellerSession))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.open.id").value(id));
+        mvc.perform(get("/api/asistencias").session(pickerSession))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        TIME.set(Instant.parse("2026-11-25T22:35:00Z"));
+        mvc.perform(body(post("/api/asistencias/salidas").session(sellerSession).with(csrf()), Map.of()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.additionalMinutes").value(35))
+                .andExpect(jsonPath("$.approvedMinutes").value(0));
+        mvc.perform(body(put("/api/asistencias/{id}/aprobar", id).session(sellerSession).with(csrf()), Map.of("minutes", 25)))
+                .andExpect(status().isForbidden());
+        mvc.perform(body(put("/api/asistencias/{id}/aprobar", id).session(adminSession).with(csrf()), Map.of("minutes", 25)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.approvedMinutes").value(25));
+        var correction = Map.of("entry", "2026-11-25T08:00:00", "exit", "2026-11-25T17:10:00", "reason", "Verificación de marcación");
+        mvc.perform(body(put("/api/asistencias/{id}/corregir", id).session(sellerSession).with(csrf()), correction))
+                .andExpect(status().isForbidden());
+        mvc.perform(body(put("/api/asistencias/{id}/corregir", id).session(adminSession).with(csrf()),
+                Map.of("entry", "2026-11-25T08:00:00", "exit", "2026-11-25T18:00:00", "reason", "Salida futura")))
+                .andExpect(status().isBadRequest());
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mvc.perform(body(put("/api/asistencias/{id}/corregir", id).session(adminSession).with(csrf()), correction))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.lateMinutes").value(0))
+                    .andExpect(jsonPath("$.additionalMinutes").value(10)).andExpect(jsonPath("$.approvedMinutes").value(10));
+        }
+        mvc.perform(get("/api/asistencias/{id}/auditoria", id).session(sellerSession)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/asistencias/{id}/auditoria", id).session(adminSession))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].administratorName").value(admin.username()))
+                .andExpect(jsonPath("$[0].reason").value("Verificación de marcación"))
+                .andExpect(jsonPath("$[0].before.approvedMinutes").value(25))
+                .andExpect(jsonPath("$[0].after.approvedMinutes").value(10))
+                .andExpect(jsonPath("$[1].action").value("APROBACION_EXTRA"));
+        mvc.perform(get("/api/asistencias").session(sellerSession))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].exit").value("2026-11-25T17:10:00"));
     }
 
     @Test
@@ -203,6 +277,11 @@ class Control360MysqlIT {
                     .andExpect(status().isOk());
             mvc.perform(body(put("/api/pedidos/{id}/estado", orderId).session(winner).with(csrf()), Map.of("status", "LISTO")))
                     .andExpect(status().isOk());
+            mvc.perform(body(put("/api/pedidos/{id}/estado", orderId).session(winner).with(csrf()), Map.of("status", "ENTREGADO")))
+                    .andExpect(status().isForbidden());
+            mvc.perform(get("/api/notificaciones").session(sellerSession))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$[0].notification.type").value("PEDIDO_LISTO"))
+                    .andExpect(jsonPath("$[0].notification.orderId").value(orderId));
             mvc.perform(body(put("/api/pedidos/{id}/estado", orderId).session(sellerSession).with(csrf()), Map.of("status", "ENTREGADO")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.history.length()").value(5));
             assertEquals(8, store.inventory(product, false).orElseThrow().quantity());

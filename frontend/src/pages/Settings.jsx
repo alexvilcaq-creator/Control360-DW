@@ -35,7 +35,7 @@ export function UsersPage() {
       { name: 'username', label: 'Usuario', required: true, pattern: String.raw`[A-Za-z0-9_.\-]{3,80}`, maxLength: 80 },
       { name: 'password', label: 'Contraseña', type: 'password', minLength: 12, maxLength: 72, requiredOnCreate: true, hint: 'Al editar, deja este campo vacío para conservar la contraseña.' },
       { name: 'role', label: 'Rol', required: true, options: Object.entries(roleName).map(([value, label]) => ({ value, label })) },
-      { name: 'workerId', label: 'Trabajador vinculado', numeric: true, options: (workers.data || []).map(({ worker }) => ({ value: worker.id, label: fullName(worker) })) },
+      { name: 'workerId', label: 'Trabajador vinculado', hint: 'Vincula la ficha del vendedor o del operario para habilitar su asistencia.', numeric: true, options: (workers.data || []).map(({ worker }) => ({ value: worker.id, label: fullName(worker) })) },
       { name: 'active', label: 'Cuenta activa', type: 'checkbox', defaultValue: true },
     ]}
     columns={[

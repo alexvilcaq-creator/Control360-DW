@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, Clock3, LogIn, LogOut, UserRoundCheck, UserRoundX } from 'lucide-react';
+import AttendanceCorrection from '../components/AttendanceCorrection';
+import PersonalAttendance from '../components/PersonalAttendance';
 import { useSearchParams } from 'react-router-dom';
 import { Button, DataTable, Dialog, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Tag } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +15,8 @@ export default function Attendance() {
   const [params, setParams] = useSearchParams();
   const [range, setRange] = useState({ from: '', to: '' });
   const [editing, setEditing] = useState(null);
+  const [correcting, setCorrecting] = useState(null);
+  const personal = useResource(admin ? null : '/asistencias/estado', {}, 15000);
   const workers = useResource(admin ? '/trabajadores' : null);
   const calendar = useResource('/calendario');
   const dates = { from: range.from || undefined, to: range.to || undefined };
@@ -36,16 +40,32 @@ export default function Attendance() {
   ];
   if (admin) {
     columns.unshift({ key: 'worker', label: 'Trabajador', render: (item) => who[item.workerId] || `#${item.workerId}` });
-    columns.push({ key: 'actions', label: '', align: 'right', render: (item) => item.exit && item.additionalMinutes > 0
-      ? <Button variant="quiet" onClick={() => setEditing(item)}>{item.approvedMinutes ? 'Revisar' : 'Aprobar'}</Button> : null });
+    columns.push({ key: 'actions', label: 'Acciones', align: 'right', render: (item) => <div className="row-actions">
+      <Button variant="quiet" onClick={() => setCorrecting(item)}>Corregir</Button>
+      {item.exit && item.additionalMinutes > 0 && <Button variant="quiet" onClick={() => setEditing(item)}>
+        {item.approvedMinutes ? 'Revisar extra' : 'Aprobar extra'}
+      </Button>}
+    </div> });
   }
 
-  function markClose() { const next = new URLSearchParams(params); next.delete('marcar'); setParams(next); }
-  function saved() { markClose(); setEditing(null); history.reload(); absences.reload(); }
+  function markClose() {
+    const next = new URLSearchParams(params);
+    next.delete('marcar');
+    next.delete('tipo');
+    setParams(next, { replace: true });
+  }
+  function saved() {
+    if (params.has('marcar')) markClose();
+    setEditing(null);
+    setCorrecting(null);
+    history.reload();
+    absences.reload();
+    personal.reload();
+  }
 
   return <>
     <PageTitle title="Asistencia" subtitle="Registra entradas y salidas, y consulta tardanzas y horas extra aprobadas.">
-      <Button icon={CalendarCheck} onClick={() => setParams({ marcar: 1 })}>Marcar asistencia</Button>
+      {admin && <Button icon={CalendarCheck} onClick={() => setParams({ marcar: 1 })}>Marcar asistencia</Button>}
     </PageTitle>
     <ErrorNotice message={history.error || absences.error || workers.error || calendar.error} retry={history.reload} />
     <div className="mini-metrics">
@@ -54,6 +74,7 @@ export default function Attendance() {
       <div><UserRoundX size={20} /><span>Faltas en la selección</span><strong>{absenceRows?.length || 0}</strong></div>
       <div><CalendarCheck size={20} /><span>Horas extra aprobadas</span><strong>{hours(rows?.reduce((total, item) => total + item.approvedMinutes, 0) || 0)}</strong></div>
     </div>
+    {!admin && <PersonalAttendance resource={personal} showHistory={false} />}
     <Section title="Historial de asistencia" className="table-panel" icon={CalendarCheck}>
       <div className="filters dates-filter">
         <Field label="Desde"><input type="date" value={range.from} max={range.to || today} onChange={(event) => setRange({ ...range, from: event.target.value })} /></Field>
@@ -72,7 +93,8 @@ export default function Attendance() {
           empty="No hay faltas para esta selección." />}
       </Section>
     </div>
-    {params.get('marcar') && <MarkDialog admin={admin} workers={workers.data || []} close={markClose} saved={saved} />}
+    {params.get('marcar') && <MarkDialog admin={admin} workers={workers.data || []} initialKind={params.get('tipo')} close={markClose} saved={saved} />}
+    {correcting && <AttendanceCorrection record={correcting} worker={who[correcting.workerId]} close={() => setCorrecting(null)} saved={saved} />}
     {editing && <Dialog title="Aprobar tiempo extra" onClose={() => setEditing(null)}>
       <p className="form-note">{who[editing.workerId]} · {dateLabel(editing.workDate)}. Se registraron {editing.additionalMinutes} minutos adicionales.</p>
       <FormSubmit onClose={() => setEditing(null)} onSubmit={async (values) => {
@@ -82,8 +104,8 @@ export default function Attendance() {
   </>;
 }
 
-function MarkDialog({ admin, workers, close, saved }) {
-  const [kind, setKind] = useState('entradas');
+function MarkDialog({ admin, workers, initialKind, close, saved }) {
+  const [kind, setKind] = useState(initialKind === 'salidas' ? 'salidas' : 'entradas');
   return <Dialog title="Marcar asistencia" onClose={close}>
     <div className="segmented">
       <Button icon={LogIn} variant={kind === 'entradas' ? 'primary' : 'outline'} onClick={() => setKind('entradas')}>Entrada</Button>

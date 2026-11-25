@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 final class Dtos {
@@ -47,6 +48,7 @@ final class Dtos {
     record Item(@NotNull @Positive Long productId, @NotNull @Min(1) @Max(1000000) Integer quantity) {}
     record StateBody(@NotNull Status status, @Positive Long workerId) {}
     record Assignee(@Positive Long workerId) {}
+    record AttendanceCorrection(@NotNull LocalDateTime entry, LocalDateTime exit, @NotBlank @Size(max = 255) String reason) {}
     record Approval(@NotNull @PositiveOrZero Integer minutes) {}
 
     private static String optional(String value) { return value == null || value.isBlank() ? null : value.strip(); }

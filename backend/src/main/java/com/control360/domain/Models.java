@@ -25,6 +25,8 @@ public final class Models {
         }
     }
 
+    public enum AttendanceAction { CORRECCION, APROBACION_EXTRA }
+
     public enum MovementType { AJUSTE, RESERVA, DEVOLUCION }
 
     public record Category(Long id, String name) {}
@@ -66,6 +68,16 @@ public final class Models {
     public record Attendance(Long id, Long workerId, Long shiftId, LocalDate workDate, LocalDateTime entry,
                              LocalDateTime exit, LocalDateTime scheduledEnd, int lateMinutes,
                              int additionalMinutes, int approvedMinutes) {}
+    public record AttendanceState(Long workerId, LocalDate today, String shiftName, Attendance open, Attendance latest) {}
+    public record AttendanceValues(LocalDateTime entry, LocalDateTime exit, int lateMinutes, int additionalMinutes, int approvedMinutes) {
+        public static AttendanceValues from(Attendance attendance) {
+            return new AttendanceValues(attendance.entry(), attendance.exit(), attendance.lateMinutes(),
+                    attendance.additionalMinutes(), attendance.approvedMinutes());
+        }
+    }
+    public record AttendanceAudit(Long id, Long attendanceId, Long administratorId, String administratorName,
+                                  AttendanceAction action, String reason, LocalDateTime createdAt,
+                                  AttendanceValues before, AttendanceValues after) {}
     public record Notification(Long id, String type, String title, String message, Long orderId,
                                LocalDateTime createdAt) {}
     public record NotificationRead(Long id, Long notificationId, Long userId) {}

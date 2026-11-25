@@ -47,9 +47,22 @@ public class AttendanceController {
         return operations.leave(actor(principal), body == null ? null : body.workerId());
     }
 
+    @GetMapping("/estado")
+    AttendanceState state(Principal principal) { return operations.attendanceState(actor(principal)); }
+
+    @GetMapping("/{id}/auditoria")
+    List<AttendanceAudit> audit(Principal principal, @PathVariable long id) {
+        return operations.attendanceAudit(actor(principal), id);
+    }
+
+    @PutMapping("/{id}/corregir")
+    Attendance correct(Principal principal, @PathVariable long id, @Valid @RequestBody AttendanceCorrection body) {
+        return operations.correct(actor(principal), id, body.entry(), body.exit(), body.reason());
+    }
+
     @PutMapping("/{id}/aprobar")
-    Attendance approve(@PathVariable long id, @Valid @RequestBody Approval body) {
-        return operations.approve(id, body.minutes());
+    Attendance approve(Principal principal, @PathVariable long id, @Valid @RequestBody Approval body) {
+        return operations.approve(actor(principal), id, body.minutes());
     }
 
     private User actor(Principal principal) { return store.user(principal.getName()).orElseThrow(); }

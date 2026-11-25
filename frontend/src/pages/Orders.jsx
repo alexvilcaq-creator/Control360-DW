@@ -18,7 +18,9 @@ export default function Orders() {
   const query = params.get('q') || '';
   const modal = allowed && (params.get('nuevo') ? 'order' : params.get('clientes') ? 'customer' : null);
   const detail = params.get('pedido');
-  const rows = orders.data?.filter(({ order, customer }) => (!filter || order.status === filter)
+  const assignedOnly = user.role === 'ALMACEN' && params.get('vista') === 'asignados';
+  const rows = orders.data?.filter(({ order, customer }) => (!assignedOnly || (user.workerId != null && order.warehouseWorkerId === user.workerId))
+    && (!filter || order.status === filter)
     && normalize(customer + ' ' + orderCode(order.id)).includes(normalize(query).trim()));
   function update(key, value) {
     const next = new URLSearchParams(params);
@@ -40,6 +42,9 @@ export default function Orders() {
     <Section title="Listado de pedidos" className="table-panel" icon={ShoppingCart} action={<span className="result-count">{rows?.length ?? 0} pedidos</span>}>
       <div className="filters">
         <label className="input-icon"><Search size={17} /><input aria-label="Buscar pedidos" placeholder="Buscar por cliente o código" value={query} onChange={(event) => update('q', event.target.value)} /></label>
+        {user.role === 'ALMACEN' && <select aria-label="Filtrar por asignación" value={assignedOnly ? 'asignados' : ''} onChange={(event) => update('vista', event.target.value)}>
+          <option value="">Pedidos visibles</option><option value="asignados">Mis asignados</option>
+        </select>}
         <select aria-label="Filtrar por estado" value={filter} onChange={(event) => update('estado', event.target.value)}><option value="">Todos los estados</option>
           {Object.entries(statusName).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>

@@ -38,6 +38,7 @@ public class JpaStore implements Store {
             entry(OrderRequest.class, new Mapping<>(OrderRequestRow.class, OrderRequestRow::new, OrderRequest::id)),
             entry(Line.class, new Mapping<>(LineRow.class, LineRow::new, Line::id)),
             entry(History.class, new Mapping<>(HistoryRow.class, HistoryRow::new, History::id)),
+            entry(AttendanceAudit.class, new Mapping<>(AttendanceAuditRow.class, AttendanceAuditRow::new, AttendanceAudit::id)),
             entry(Attendance.class, new Mapping<>(AttendanceRow.class, AttendanceRow::new, Attendance::id)),
             entry(Notification.class, new Mapping<>(NotificationRow.class, NotificationRow::new, Notification::id)),
             entry(NotificationRead.class, new Mapping<>(NotificationReadRow.class, NotificationReadRow::new, NotificationRead::id))

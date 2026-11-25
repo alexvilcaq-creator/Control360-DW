@@ -70,12 +70,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/api/usuarios/**", "/api/trabajadores/**",
-                                "/api/reportes/resumen", "/api/inventario/**").hasRole("ADMIN")
+                                "/api/reportes/resumen", "/api/inventario/**", "/api/asistencias/*/auditoria").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/productos/**", "/api/categorias/**", "/api/ubicaciones/**", "/api/turnos/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/productos/**", "/api/categorias/**", "/api/ubicaciones/**", "/api/turnos/**", "/api/asistencias/*/aprobar").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/productos/**", "/api/categorias/**", "/api/ubicaciones/**", "/api/turnos/**", "/api/asistencias/*/aprobar", "/api/asistencias/*/corregir").hasRole("ADMIN")
                         .requestMatchers("/api/clientes/**").hasAnyRole("ADMIN", "VENDEDOR")
                         .requestMatchers(HttpMethod.POST, "/api/pedidos").hasAnyRole("ADMIN", "VENDEDOR")
-                        .requestMatchers("/api/asistencias/**").hasAnyRole("ADMIN", "ALMACEN")
+                        .requestMatchers("/api/asistencias/**").hasAnyRole("ADMIN", "VENDEDOR", "ALMACEN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
                 .build();

@@ -1,0 +1,22 @@
+CREATE TABLE attendance_audit (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  attendance_id BIGINT NOT NULL,
+  administrator_id BIGINT NOT NULL,
+  administrator_name VARCHAR(80) NOT NULL,
+  action VARCHAR(24) NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  previous_entry DATETIME(6) NOT NULL,
+  previous_exit DATETIME(6),
+  previous_late_minutes INT NOT NULL,
+  previous_additional_minutes INT NOT NULL,
+  previous_approved_minutes INT NOT NULL,
+  corrected_entry DATETIME(6) NOT NULL,
+  corrected_exit DATETIME(6),
+  corrected_late_minutes INT NOT NULL,
+  corrected_additional_minutes INT NOT NULL,
+  corrected_approved_minutes INT NOT NULL,
+  INDEX (attendance_id, id),
+  FOREIGN KEY (attendance_id) REFERENCES attendance(id),
+  FOREIGN KEY (administrator_id) REFERENCES app_users(id)
+);

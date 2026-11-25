@@ -10,6 +10,7 @@ import Login from '../pages/Login';
 import Orders from '../pages/Orders';
 import Reports from '../pages/Reports';
 import { Settings, UsersPage } from '../pages/Settings';
+import { SellerDashboard, WarehouseDashboard } from '../pages/StaffDashboard';
 import Warehouse from '../pages/Warehouse';
 
 function Guard({ roles }) {
@@ -25,17 +26,24 @@ function LoginPage() {
   return user ? <Navigate to="/" replace /> : <Login />;
 }
 
+function RoleDashboard() {
+  const { user } = useAuth();
+  if (user.role === 'VENDEDOR') return <SellerDashboard />;
+  if (user.role === 'ALMACEN') return <WarehouseDashboard />;
+  return <Dashboard />;
+}
+
 export default function App() {
   return <BrowserRouter><Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route element={<Guard />}>
       <Route element={<Workspace />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<RoleDashboard />} />
         <Route path="pedidos" element={<Orders />} />
         <Route path="inventario" element={<Inventory />} />
         <Route path="almacen" element={<Warehouse />} />
         <Route path="configuracion" element={<Settings />} />
-        <Route element={<Guard roles={['ADMIN', 'ALMACEN']} />}><Route path="asistencia" element={<Attendance />} /></Route>
+        <Route path="asistencia" element={<Attendance />} />
         <Route element={<Guard roles={['ADMIN']} />}>
           <Route path="trabajadores" element={<Workers />} />
           <Route path="categorias" element={<Categories />} />

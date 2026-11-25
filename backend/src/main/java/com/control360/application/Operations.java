@@ -75,12 +75,15 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
     }
 
     public UserProfile saveUser(User user, User actor) {
+        requireAdministrator(actor);
         return store.write(() -> {
             User old = user.id() == null ? null : store.lockUser(user.id()).orElseThrow(() -> missing("Usuario inexistente"));
             if (old != null && old.id().equals(actor.id()) && (!user.active() || user.role() != Role.ADMIN))
                 throw conflict("No puedes quitar el acceso de tu propia cuenta de administrador");
-            if (user.role() == Role.ALMACEN && user.workerId() == null)
-                throw invalid("Vincula un trabajador al usuario de almacén");
+            boolean existingUnlinkedSeller = old != null && old.role() == Role.VENDEDOR && old.workerId() == null
+                    && user.role() == Role.VENDEDOR;
+            if (user.role() != Role.ADMIN && user.workerId() == null && !existingUnlinkedSeller)
+                throw invalid("Vincula un trabajador para que la cuenta pueda registrar su asistencia");
             if (user.workerId() != null) required(Worker.class, user.workerId());
             String hash = user.passwordHash() != null ? user.passwordHash() : old == null ? null : old.passwordHash();
             if (hash == null) throw invalid("La contraseña es obligatoria para cuentas nuevas");
@@ -370,9 +373,8 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
             boolean duplicate = store.all(Attendance.class).stream().anyMatch(a ->
                     a.workerId().equals(selected) && (a.exit() == null || a.workDate().equals(date)));
             if (duplicate) throw conflict("Ya existe una entrada para el turno o una salida pendiente");
-            int late = (int) Math.max(0, ChronoUnit.MINUTES.between(date.atTime(shift.startsAt()), time));
-            if (late <= shift.graceMinutes()) late = 0;
-            return store.save(new Attendance(null, selected, shift.id(), date, time, null, shiftEnd(shift, date), late, 0, 0));
+            return store.save(new Attendance(null, selected, shift.id(), date, time, null, shiftEnd(shift, date),
+                    lateMinutes(shift, date, time), 0, 0));
         });
     }
 
@@ -386,23 +388,101 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
                     .orElseThrow(() -> conflict("No hay una entrada abierta"));
             LocalDateTime time = now();
             if (time.isBefore(entry.entry())) throw conflict("La salida no puede ser anterior a la entrada");
-            int extra = Math.toIntExact(Math.max(0, ChronoUnit.MINUTES.between(entry.scheduledEnd(), time)));
+            int extra = additionalMinutes(entry.scheduledEnd(), time);
             return store.save(new Attendance(entry.id(), selected, entry.shiftId(), entry.workDate(), entry.entry(),
                     time, entry.scheduledEnd(), entry.lateMinutes(), extra, 0));
         });
     }
 
+    private int lateMinutes(Shift shift, LocalDate workDate, LocalDateTime entry) {
+        long minutes = ChronoUnit.MINUTES.between(workDate.atTime(shift.startsAt()), entry);
+        return minutes <= shift.graceMinutes() ? 0 : Math.toIntExact(minutes);
+    }
+
+    private int additionalMinutes(LocalDateTime scheduledEnd, LocalDateTime exit) {
+        if (exit == null) return 0;
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, ChronoUnit.MINUTES.between(scheduledEnd, exit)));
+    }
+
+    private void requireAdministrator(User actor) {
+        if (actor.role() != Role.ADMIN) throw forbidden("Esta operación requiere una cuenta de administrador");
+    }
+
     @Override
-    public Attendance approve(long id, int minutes) {
+    public AttendanceState attendanceState(User actor) {
+        Long workerId = actor.workerId();
+        if (workerId == null) return new AttendanceState(null, today(), null, null, null);
+        return store.read(() -> {
+            Worker worker = required(Worker.class, workerId);
+            String shiftName = worker.shiftId() == null ? null : required(Shift.class, worker.shiftId()).name();
+            List<Attendance> records = store.all(Attendance.class).stream().filter(item -> item.workerId().equals(workerId))
+                    .sorted(Comparator.comparing(Attendance::entry).reversed()).toList();
+            Attendance open = records.stream().filter(item -> item.exit() == null).findFirst().orElse(null);
+            return new AttendanceState(workerId, today(), shiftName, open, records.isEmpty() ? null : records.get(0));
+        });
+    }
+
+    @Override
+    public Attendance approve(User actor, long id, int minutes) {
+        requireAdministrator(actor);
         Long workerId = required(Attendance.class, id).workerId();
         return store.write(() -> {
             store.lockWorker(workerId).orElseThrow(() -> missing("Trabajador inexistente"));
             Attendance entry = required(Attendance.class, id);
             if (entry.exit() == null || minutes < 0 || minutes > entry.additionalMinutes())
                 throw invalid("Aprueba únicamente minutos adicionales registrados tras la salida");
-            return store.save(new Attendance(id, workerId, entry.shiftId(), entry.workDate(), entry.entry(),
-                    entry.exit(), entry.scheduledEnd(), entry.lateMinutes(), entry.additionalMinutes(), minutes));
+            Attendance updated = new Attendance(id, workerId, entry.shiftId(), entry.workDate(), entry.entry(),
+                    entry.exit(), entry.scheduledEnd(), entry.lateMinutes(), entry.additionalMinutes(), minutes);
+            return saveAttendanceChange(actor, AttendanceAction.APROBACION_EXTRA, "Revisión de horas extra", entry, updated);
         });
+    }
+
+    @Override
+    public Attendance correct(User actor, long id, LocalDateTime entry, LocalDateTime exit, String reason) {
+        requireAdministrator(actor);
+        if (entry == null || reason == null || reason.isBlank() || reason.strip().length() > 255)
+            throw invalid("Indica la hora de entrada y un motivo de hasta 255 caracteres");
+        LocalDateTime correctedEntry = entry.truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime correctedExit = exit == null ? null : exit.truncatedTo(ChronoUnit.MICROS);
+        Long workerId = required(Attendance.class, id).workerId();
+        return store.write(() -> {
+            store.lockWorker(workerId).orElseThrow(() -> missing("Trabajador inexistente"));
+            Attendance previous = required(Attendance.class, id);
+            LocalDateTime time = now();
+            if (correctedEntry.isBefore(previous.workDate().atStartOfDay())
+                    || !correctedEntry.isBefore(previous.scheduledEnd()) || correctedEntry.isAfter(time))
+                throw invalid("La entrada debe corresponder a la jornada original y no puede ser futura");
+            if (correctedExit != null && (correctedExit.isBefore(correctedEntry) || correctedExit.isAfter(time)))
+                throw invalid("La salida debe estar entre la entrada y la hora actual");
+            boolean overlaps = store.all(Attendance.class).stream()
+                    .filter(item -> item.workerId().equals(workerId) && !item.id().equals(id))
+                    .anyMatch(item -> (correctedExit == null || item.entry().isBefore(correctedExit))
+                            && (item.exit() == null || correctedEntry.isBefore(item.exit())));
+            if (overlaps) throw conflict("La corrección se cruza con otra jornada del trabajador");
+            Shift shift = required(Shift.class, previous.shiftId());
+            int extra = additionalMinutes(previous.scheduledEnd(), correctedExit);
+            int late = correctedEntry.equals(previous.entry()) ? previous.lateMinutes()
+                    : lateMinutes(shift, previous.workDate(), correctedEntry);
+            Attendance updated = new Attendance(id, workerId, previous.shiftId(), previous.workDate(), correctedEntry,
+                    correctedExit, previous.scheduledEnd(), late, extra, Math.min(previous.approvedMinutes(), extra));
+            return saveAttendanceChange(actor, AttendanceAction.CORRECCION, reason.strip(), previous, updated);
+        });
+    }
+
+    private Attendance saveAttendanceChange(User actor, AttendanceAction action, String reason, Attendance previous, Attendance updated) {
+        if (previous.equals(updated)) return previous;
+        Attendance saved = store.save(updated);
+        store.save(new AttendanceAudit(null, saved.id(), actor.id(), actor.username(), action, reason, now(),
+                AttendanceValues.from(previous), AttendanceValues.from(saved)));
+        return saved;
+    }
+
+    @Override
+    public List<AttendanceAudit> attendanceAudit(User actor, long id) {
+        requireAdministrator(actor);
+        required(Attendance.class, id);
+        return store.all(AttendanceAudit.class).stream().filter(item -> item.attendanceId().equals(id))
+                .sorted(Comparator.comparing(AttendanceAudit::id).reversed()).toList();
     }
 
     @Override

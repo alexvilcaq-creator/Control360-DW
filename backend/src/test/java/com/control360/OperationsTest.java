@@ -86,7 +86,7 @@ class OperationsTest {
         var worker = new Worker(42L, "Alex", "Vega", "DOC", "test@example.com", "Almacén", true, 12L, LocalDate.now(CLOCK));
         when(store.find(Attendance.class, 6L)).thenReturn(Optional.of(entry));
         when(store.lockWorker(42L)).thenReturn(Optional.of(worker));
-        assertEquals(RuleViolation.Kind.INVALID, assertThrows(RuleViolation.class, () -> operations.approve(6L, 13)).kind());
+        assertEquals(RuleViolation.Kind.INVALID, assertThrows(RuleViolation.class, () -> operations.approve(ADMIN, 6L, 13)).kind());
         verify(store, never()).save(any());
     }
 }

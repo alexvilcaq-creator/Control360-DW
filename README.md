@@ -68,7 +68,7 @@ Control360-DW/
 
 ## Base de datos
 
-La cuenta tiene un rol `ADMIN`, `VENDEDOR` o `ALMACEN` que se valida en MySQL y Spring Security. Una cuenta de almacén se vincula a un trabajador. Un producto tiene una fila de inventario, una categoría y una ubicación. Los detalles del pedido guardan el precio aplicado al momento de la venta.
+La cuenta tiene un rol `ADMIN`, `VENDEDOR` o `ALMACEN` que se valida en MySQL y Spring Security. Las cuentas de vendedor y de almacén se vinculan a una ficha de trabajador para registrar asistencia. Un producto tiene una fila de inventario, una categoría y una ubicación. Los detalles del pedido guardan el precio aplicado al momento de la venta.
 
 ```mermaid
 erDiagram
@@ -91,6 +91,8 @@ erDiagram
     ORDERS o|--o| ORDER_REQUESTS : confirma
     WORKERS ||--o{ ATTENDANCE : marca
     SHIFTS ||--o{ ATTENDANCE : referencia
+    ATTENDANCE ||--o{ ATTENDANCE_AUDIT : conserva
+    APP_USERS ||--o{ ATTENDANCE_AUDIT : autoriza
     ORDERS o|--o{ NOTIFICATIONS : genera
     NOTIFICATIONS ||--o{ NOTIFICATION_READS : marca
     APP_USERS ||--o{ NOTIFICATION_READS : lee
@@ -147,11 +149,17 @@ El [guion de la exposición](docs/demostracion.md) recorre el flujo de trabajo c
 
 | Rol | Funciones |
 | --- | --- |
-| Administrador | Gestiona usuarios, catálogo, existencias, ubicaciones, pedidos, trabajadores y turnos. Registra asistencia, aprueba minutos extra y consulta reportes. |
-| Vendedor | Registra clientes y pedidos. Consulta existencias, sigue sus pedidos, cancela los pendientes y confirma entregas listas. |
+| Administrador | Gestiona usuarios, catálogo, existencias, ubicaciones, pedidos, trabajadores y turnos. Registra y corrige asistencia, aprueba minutos extra y consulta reportes. |
+| Vendedor | Registra clientes y pedidos. Consulta existencias, sigue sus pedidos, cancela los pendientes y confirma entregas listas. Marca entrada y salida y consulta su historial personal. |
 | Trabajador de almacén | Consulta pedidos pendientes y asignados. Acepta y prepara pedidos durante su turno, consulta el plano y registra su asistencia. |
 
 Los permisos se verifican en Spring Security y, para objetos como pedidos o asistencias individuales, en los casos de uso. El hash BCrypt se guarda en la base y nunca se devuelve en los DTO de usuario.
+
+Todos ingresan por la misma pantalla. El backend identifica el rol en la sesión de Spring Security y React abre el panel correspondiente. Al desactivar una cuenta, el backend revoca su acceso en la siguiente solicitud.
+
+Para dar de alta a un empleado, crea su ficha en **Trabajadores**, asígnale un turno y vincula esa ficha a la cuenta desde **Usuarios**. Si un vendedor de una instalación anterior aún no tiene ficha vinculada, el administrador puede enlazarla sin cambiar su contraseña.
+
+En **Asistencia**, el administrador puede elegir **Corregir** e indicar un motivo. La auditoría registra el usuario, la fecha y los valores anteriores y posteriores de la marcación y las aprobaciones. Las horas se interpretan en `APP_ZONE`. Una corrección puede reducir los minutos aprobados si la nueva salida genera menos tiempo adicional.
 
 ## API REST
 
@@ -170,9 +178,10 @@ Los permisos se verifican en Spring Security y, para objetos como pedidos o asis
 | `GET, POST /api/trabajadores` · `PUT /api/trabajadores/{id}` | Consultar disponibilidad y administrar trabajadores |
 | `GET, POST /api/turnos` · `PUT /api/turnos/{id}` | Consultar y administrar turnos |
 | `GET, POST /api/usuarios` · `PUT /api/usuarios/{id}` | Administrar cuentas y roles |
-| `GET /api/asistencias` · `GET /api/asistencias/faltas` | Consultar historial y faltas por rango |
+| `GET /api/asistencias` · `GET /api/asistencias/faltas` · `GET /api/asistencias/estado` | Consultar historial, faltas por rango y estado personal |
 | `POST /api/asistencias/entradas` · `POST /api/asistencias/salidas` | Marcar entrada o salida |
 | `PUT /api/asistencias/{id}/aprobar` | Aprobar hasta los minutos adicionales registrados |
+| `PUT /api/asistencias/{id}/corregir` · `GET /api/asistencias/{id}/auditoria` | Corregir una marcación con motivo y consultar su auditoría como administrador |
 | `GET /api/calendario` · `GET /api/dashboard` · `GET /api/reportes/resumen` | Consultar fecha de negocio, panel y reportes |
 | `GET /api/notificaciones` · `POST /api/notificaciones/leer` | Consultar y marcar avisos como leídos |
 

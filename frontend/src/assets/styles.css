@@ -192,6 +192,20 @@ small { font-size: .84em; }
 .dashboard-main { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
 .dashboard-secondary { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.08fr) minmax(0, .88fr); }
 .dashboard-secondary:not(:has(.attendance-panel)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.staff-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.staff-dashboard { grid-template-columns: minmax(0, 1.66fr) minmax(0, 1fr); align-items: start; }
+.staff-dashboard-side { display: grid; gap: var(--gap); min-width: 0; }
+.ready-order-notice { display: flex; align-items: center; gap: 10px; padding: 10px 13px; margin-bottom: var(--gap); border: 1px solid var(--line); border-radius: var(--radius); background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 650; }
+.ready-order-notice > span { flex: 1; }
+.ready-order-notice > svg { flex-shrink: 0; }
+.personal-attendance { margin-bottom: var(--gap); }
+.staff-dashboard .personal-attendance { margin-bottom: 0; }
+.personal-attendance-body { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 8px; }
+.personal-attendance-body p { display: flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 12px; }
+.personal-attendance-body small, .personal-note { display: block; color: var(--muted); margin-top: 5px; font-size: 11px; }
+.attendance-audit h3 { font-size: 14px; font-weight: 700; margin-bottom: 9px; }
+.attendance-snapshot { display: grid; gap: 2px; min-width: 145px; white-space: normal; }
+.attendance-snapshot small { color: var(--muted); overflow-wrap: anywhere; }
 .recent-panel .table-scroll th, .recent-panel .table-scroll td { padding-block: 9px; }
 .inventory-chart {
   --surface: #21382e; --surface-soft: #30483c; --ink: #f3f9ee; --muted: #b7cbbd; --line: #496456;
@@ -450,7 +464,7 @@ select.mini-select { min-height: 31px; padding: 5px 5px 5px 8px; font-size: 11px
   .metric { padding: 13px 10px; }
   .metric-icon { width: 34px; height: 34px; flex-basis: 34px; }
   .metric-icon svg { width: 19px; }
-  .dashboard-main { grid-template-columns: minmax(0,1fr); }
+  .dashboard-main, .staff-dashboard { grid-template-columns: minmax(0,1fr); }
   .recent-panel .date-time { display: inline; }
 }
 @media (max-width: 850px) {

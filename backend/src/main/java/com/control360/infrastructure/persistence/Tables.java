@@ -309,6 +309,78 @@ public final class Tables {
         }
     }
 
+    @Embeddable
+    public static class AttendanceSnapshot {
+        private LocalDateTime entry;
+        private LocalDateTime exit;
+        private int lateMinutes;
+        private int additionalMinutes;
+        private int approvedMinutes;
+
+        protected AttendanceSnapshot() {}
+
+        AttendanceSnapshot(AttendanceValues value) {
+            entry = value.entry();
+            exit = value.exit();
+            lateMinutes = value.lateMinutes();
+            additionalMinutes = value.additionalMinutes();
+            approvedMinutes = value.approvedMinutes();
+        }
+
+        AttendanceValues toDomain() {
+            return new AttendanceValues(entry, exit, lateMinutes, additionalMinutes, approvedMinutes);
+        }
+    }
+
+    @Entity(name = "AttendanceAuditRow")
+    @Table(name = "attendance_audit")
+    public static class AttendanceAuditRow extends Row<AttendanceAudit> {
+        private Long attendanceId;
+        private Long administratorId;
+        private String administratorName;
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        private AttendanceAction action;
+        private String reason;
+        private LocalDateTime createdAt;
+        @Embedded
+        @AttributeOverrides({
+                @AttributeOverride(name = "entry", column = @Column(name = "previous_entry")),
+                @AttributeOverride(name = "exit", column = @Column(name = "previous_exit")),
+                @AttributeOverride(name = "lateMinutes", column = @Column(name = "previous_late_minutes")),
+                @AttributeOverride(name = "additionalMinutes", column = @Column(name = "previous_additional_minutes")),
+                @AttributeOverride(name = "approvedMinutes", column = @Column(name = "previous_approved_minutes"))
+        })
+        private AttendanceSnapshot before;
+        @Embedded
+        @AttributeOverrides({
+                @AttributeOverride(name = "entry", column = @Column(name = "corrected_entry")),
+                @AttributeOverride(name = "exit", column = @Column(name = "corrected_exit")),
+                @AttributeOverride(name = "lateMinutes", column = @Column(name = "corrected_late_minutes")),
+                @AttributeOverride(name = "additionalMinutes", column = @Column(name = "corrected_additional_minutes")),
+                @AttributeOverride(name = "approvedMinutes", column = @Column(name = "corrected_approved_minutes"))
+        })
+        private AttendanceSnapshot after;
+
+        @Override
+        AttendanceAudit toDomain() {
+            return new AttendanceAudit(id, attendanceId, administratorId, administratorName, action, reason, createdAt,
+                    before.toDomain(), after.toDomain());
+        }
+
+        @Override
+        void copyFrom(AttendanceAudit audit) {
+            attendanceId = audit.attendanceId();
+            administratorId = audit.administratorId();
+            administratorName = audit.administratorName();
+            action = audit.action();
+            reason = audit.reason();
+            createdAt = audit.createdAt();
+            before = new AttendanceSnapshot(audit.before());
+            after = new AttendanceSnapshot(audit.after());
+        }
+    }
+
     @Entity(name = "AttendanceRow")
     @Table(name = "attendance")
     public static class AttendanceRow extends Row<Attendance> {
