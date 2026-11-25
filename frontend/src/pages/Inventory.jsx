@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, History, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Boxes, History, MapPin, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, DataTable, Dialog, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Tag } from '../components/ui';
 import ProductPhoto from '../components/ProductPhoto';
@@ -31,10 +31,10 @@ export default function Inventory() {
   const columns = [
     { key: 'product', label: 'Producto', render: (item) => <div className="entity-cell"><ProductPhoto product={item} /><div><strong>{item.name}</strong><small>{item.sku}</small></div></div> },
     { key: 'category', label: 'Categoría', render: (item) => categories.data?.find((c) => c.id === item.categoryId)?.name || '—' },
-    { key: 'location', label: 'Ubicación', render: (item) => <Link className="table-link muted-link" to={`/almacen?ubicacion=${item.locationId}`}>{locationLabel(locations.data?.find((l) => l.id === item.locationId))}</Link> },
+    { key: 'location', label: 'Ubicación', render: (item) => <Link className="table-link muted-link location-text" to={`/almacen?ubicacion=${item.locationId}`}><MapPin size={14} />{locationLabel(locations.data?.find((l) => l.id === item.locationId))}</Link> },
     { key: 'price', label: 'Precio', align: 'right', render: (item) => money(item.price) },
     { key: 'quantity', label: 'Existencia', align: 'right', render: (item) => <Tag tone={!item.active ? 'muted' : item.quantity <= item.minStock ? 'red' : 'green'}>{item.quantity} u.</Tag> },
-    { key: 'status', label: 'Estado', render: (item) => <span className="muted">{item.active ? 'Activo' : 'Inactivo'}</span> },
+    { key: 'status', label: 'Estado', render: (item) => <Tag tone={item.active ? "green" : "muted"} dot>{item.active ? 'Activo' : 'Inactivo'}</Tag> },
   ];
   if (admin) columns.push({ key: 'actions', label: '', align: 'right', render: (item) => <div className="row-actions">
     <Button variant="quiet" onClick={() => setModal({ type: 'edit', item })}>Editar</Button>
@@ -46,7 +46,7 @@ export default function Inventory() {
       {admin && <><Button variant="outline" icon={History} onClick={() => setModal({ type: 'history' })}>Movimientos</Button><Button icon={Plus} onClick={() => setParam('nuevo', '1')}>Nuevo producto</Button></>}
     </PageTitle>
     <ErrorNotice message={products.error || categories.error || locations.error} retry={products.reload} />
-    <Section title="Catálogo de productos" icon={Boxes} action={<span className="result-count">{products.data?.length ?? 0} productos</span>}>
+    <Section title="Catálogo de productos" className="table-panel" icon={Boxes} action={<span className="result-count">{products.data?.length ?? 0} productos</span>}>
       <div className="filters">
         <label className="input-icon"><Search size={17} /><input aria-label="Buscar productos" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setParam('q', event.target.value)} /></label>
         <select aria-label="Filtrar por categoría" value={category} onChange={(event) => setParam('category', event.target.value)}><option value="">Todas las categorías</option>

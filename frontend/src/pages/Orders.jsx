@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, ClipboardList, MapPin, Plus, Search, ShoppingCart, Trash2, UserPlus } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import OrderProgress from '../components/OrderProgress';
 import OrderTable from '../components/OrderTable';
 import { Button, DataTable, Dialog, Empty, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Status } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +37,7 @@ export default function Orders() {
         <Button icon={Plus} onClick={() => update('nuevo', 1)}>Nuevo pedido</Button></>}
     </PageTitle>
     <ErrorNotice message={orders.error} retry={orders.reload} />
-    <Section title="Listado de pedidos" icon={ShoppingCart} action={<span className="result-count">{rows?.length ?? 0} pedidos</span>}>
+    <Section title="Listado de pedidos" className="table-panel" icon={ShoppingCart} action={<span className="result-count">{rows?.length ?? 0} pedidos</span>}>
       <div className="filters">
         <label className="input-icon"><Search size={17} /><input aria-label="Buscar pedidos" placeholder="Buscar por cliente o código" value={query} onChange={(event) => update('q', event.target.value)} /></label>
         <select aria-label="Filtrar por estado" value={filter} onChange={(event) => update('estado', event.target.value)}><option value="">Todos los estados</option>
@@ -162,11 +163,13 @@ function OrderDetail({ id, close, reload, user }) {
     <ErrorNotice message={error || record.error || products.error || locations.error || allowedWorkers.error} retry={record.error ? record.reload : undefined} />
     {record.loading && !order ? <Loading /> : order && <>
       <div className="detail-summary"><div><strong>{record.data.customer}</strong><small>{dateLabel(order.createdAt)} · {timeLabel(order.createdAt)}{assigned ? ' · ' + fullName(assigned) : ''}</small></div><Status value={order.status} /></div>
+      <OrderProgress status={order.status} />
       <DataTable rows={record.data.items} columns={[
         { key: 'product', label: 'Producto', render: (item) => products.data?.find((p) => p.id === item.productId)?.name || `Producto #${item.productId}` },
         { key: 'location', label: 'Ubicación', render: (item) => {
           const product = products.data?.find((p) => p.id === item.productId);
-          return <span className="location-text"><MapPin size={15} />{locationLabel(locations.data?.find((l) => l.id === product?.locationId))}</span>;
+          const location = locations.data?.find((item) => item.id === product?.locationId);
+          return location ? <Link className="location-text table-link" to={`/almacen?ubicacion=${location.id}`}><MapPin size={14} />{locationLabel(location)}</Link> : '—';
         } },
         { key: 'quantity', label: 'Cantidad', align: 'right' },
         { key: 'price', label: 'Importe', align: 'right', render: (item) => money(item.quantity * item.price) },

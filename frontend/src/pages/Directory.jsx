@@ -54,6 +54,6 @@ export function Workers() {
       { key: 'document', label: 'Documento', render: ({ worker }) => worker.document },
       { key: 'position', label: 'Cargo', render: ({ worker }) => worker.position },
       { key: 'shift', label: 'Turno', render: ({ worker }) => shiftName[worker.shiftId] || 'Sin turno' },
-      { key: 'available', label: 'Disponibilidad', render: ({ worker, available }) => <Tag tone={available ? 'green' : 'muted'}>{available ? 'Disponible' : worker.active ? 'Fuera de turno' : 'Inactivo'}</Tag> },
+      { key: 'available', label: 'Disponibilidad', render: ({ worker, available }) => <Tag tone={available ? 'green' : 'muted'} dot>{available ? 'Disponible' : worker.active ? 'Fuera de turno' : 'Inactivo'}</Tag> },
     ]} />;
 }

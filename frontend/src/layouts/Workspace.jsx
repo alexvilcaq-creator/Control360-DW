@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Bell, CheckCheck, ChevronDown, CircleHelp, LogOut, Menu, Moon, Package2, Search, ShoppingCart, Sun, Users, X } from 'lucide-react';
+import { ArrowRight, Bell, CheckCheck, ChevronDown, ChevronRight, CircleHelp, LogOut, Menu, Moon, Package2, Search, ShoppingCart, Sun, Users } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Brand, Button, Dialog, Empty, ErrorNotice, Loading } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,8 @@ export default function Workspace() {
   const notifications = useResource('/notificaciones', {}, 20000);
   const unread = notifications.data?.filter((item) => !item.read).length || 0;
   const allowed = navigation.filter((item) => item.roles.includes(user.role));
+  const current = [...allowed, settings].find((item) => routerLocation.pathname === item.to
+    || (item.to !== '/' && routerLocation.pathname.startsWith(item.to + '/')));
 
   useEffect(() => {
     const keyboard = (event) => {
@@ -58,14 +60,16 @@ export default function Workspace() {
         {links(allowed.filter((item) => !item.admin))}
         {allowed.some((item) => item.admin) && <><p className="sidebar-label secondary">ADMINISTRACIÓN</p>{links(allowed.filter((item) => item.admin))}</>}
       </nav>
-      <div className="sidebar-footer">{links([settings])}
-        <div className="workspace-label"><span className="workspace-dot" /> Espacio de trabajo</div>
-      </div>
+      <div className="sidebar-footer">{links([settings])}</div>
     </aside>
     <div className="workarea">
       <header className="topbar">
-        <button className="icon-button menu-trigger" aria-label="Abrir navegación" onClick={() => setMenu(!menu)}><Menu size={24} /></button>
-        <button className="top-search" onClick={() => { setSearch(true); setPopover(''); }}><Search size={19} /><span>Buscar pedidos, productos, trabajadores…</span><kbd>Ctrl K</kbd></button>
+        <button className="icon-button menu-trigger" aria-label="Abrir navegación" aria-expanded={menu} onClick={() => setMenu(!menu)}><Menu size={22} /></button>
+        <div className="topbar-identity">
+          <Link to="/" aria-label="Control360, inicio"><Brand tone={theme} compact /></Link>
+          {current && <><ChevronRight size={13} aria-hidden="true" /><span>{current.label}</span></>}
+        </div>
+        <button className="top-search" onClick={() => { setSearch(true); setPopover(''); }}><Search size={17} /><span>Buscar pedidos, productos, trabajadores…</span><kbd>Ctrl K</kbd></button>
         <div className="header-controls">
           <button className="icon-button theme-trigger" aria-label={theme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'} onClick={toggle}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
           <div className="popover-anchor">

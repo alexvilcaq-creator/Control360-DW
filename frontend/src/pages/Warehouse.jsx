@@ -65,7 +65,7 @@ export default function Warehouse() {
           </div> : <Empty>Aún no hay ubicaciones registradas.</Empty>}
         {search && <div className="map-legend" role="status"><i />{highlightIds.size === 1 ? '1 ubicación coincide con la búsqueda' : `${highlightIds.size} ubicaciones coinciden con la búsqueda`}</div>}
       </Section>
-      <Section title={active ? `Zona ${active.zone} · Estante ${active.shelf}` : 'Productos en el plano'} icon={MapPin} caption={active ? locationLabel(active) : 'Existencias por ubicación'}
+      <Section title={active ? `Zona ${active.zone} · Estante ${active.shelf}` : 'Productos en el plano'} icon={MapPin} className="map-product-panel" caption={active ? locationLabel(active) : 'Existencias por ubicación'}
         action={active && <button type="button" className="icon-button" aria-label="Ver todas las ubicaciones" onClick={() => setSearch({})}><X size={18} /></button>}>
         {products.loading && !products.data ? <Loading /> : shown.length ? <div className="map-products">
           {shown.map((item) => <Link key={item.id} to={`/inventario?q=${encodeURIComponent(item.sku)}`}>

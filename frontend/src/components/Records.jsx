@@ -35,7 +35,7 @@ export default function Records({ title, subtitle, singular, icon, endpoint, col
     <PageTitle title={title} subtitle={subtitle}><Button icon={Plus} disabled={!formReady} onClick={() => setEdit({})}>Crear {singular}</Button></PageTitle>
     <ErrorNotice message={resource.error || dependencies.find((item) => item.error)?.error} retry={resource.reload} />
     {children}
-    <Section title={title} icon={icon} action={<span className="result-count">{filtered?.length || 0} registros</span>}>
+    <Section title={title} icon={icon} className="table-panel" action={<span className="result-count">{filtered?.length || 0} registros</span>}>
       <div className="filters"><label className="input-icon"><Search size={17} /><input aria-label={`Buscar en ${title}`} placeholder={searchPlaceholder} value={query} onChange={(event) => search(event.target.value)} /></label></div>
       {noData ? <Loading /> : <DataTable rows={filtered} columns={columnsWithAction} empty="No hay registros que coincidan con la búsqueda." />}
     </Section>

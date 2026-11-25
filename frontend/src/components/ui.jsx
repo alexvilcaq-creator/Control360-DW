@@ -1,24 +1,23 @@
 import { cloneElement, useEffect, useId, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, Box, Inbox, LoaderCircle, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, Inbox, LoaderCircle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '../services/api';
 import { statusName, statusTone } from '../services/format';
 
-export function Brand() {
-  return <div className="brand">
-    <span className="brand-mark"><Box size={26} strokeWidth={2.2} /></span>
-    <div><strong>Control<span>360</span></strong><small>Gestión de operaciones</small></div>
-  </div>;
+export function Brand({ tone = 'dark', compact = false }) {
+  const asset = compact ? 'isotipo' : 'control360';
+  return <img className={`brand ${compact ? 'brand-compact' : ''}`} src={`/brand/${asset}-${tone}.svg`}
+    width={compact ? 29 : 178} height={compact ? 29 : 42} alt="Control360" />;
 }
 
 export function Button({ icon: Icon, variant = 'primary', children, className = '', ...props }) {
-  return <button type="button" className={`button ${variant} ${className}`} {...props}>{Icon && <Icon size={17} />}{children}</button>;
+  return <button type="button" className={`button button--${variant} ${className}`} {...props}>{Icon && <Icon size={17} />}{children}</button>;
 }
 
-export function Tag({ tone = 'muted', children }) {
-  return <span className={`tag ${tone}`}>{children}</span>;
+export function Tag({ tone = 'muted', dot = false, children }) {
+  return <span className={`tag ${tone}`}>{dot && <i className="tag-dot" aria-hidden="true" />}{children}</span>;
 }
-export function Status({ value }) { return <Tag tone={statusTone[value]}>{statusName[value] || value}</Tag>; }
+export function Status({ value }) { return <Tag tone={statusTone[value]} dot>{statusName[value] || value}</Tag>; }
 
 export function PageTitle({ title, subtitle, children }) {
   return <div className="page-title">
@@ -39,7 +38,7 @@ export function TextLink({ to, children }) {
   return <Link to={to} className="text-link">{children}<ArrowRight size={15} /></Link>;
 }
 
-export function Loading() { return <div className="empty"><LoaderCircle className="spinner" size={24} /><p>Cargando datos…</p></div>; }
+export function Loading() { return <div className="empty" role="status"><LoaderCircle className="spinner" size={24} /><p>Cargando datos…</p></div>; }
 export function Empty({ children = 'No hay registros para mostrar.' }) { return <div className="empty"><Inbox size={26} /><p>{children}</p></div>; }
 export function ErrorNotice({ message, retry }) {
   if (!message) return null;
@@ -58,13 +57,14 @@ export function DataTable({ columns, rows, empty, onClick }) {
 
 export function Dialog({ title, children, onClose, wide = false }) {
   const ref = useRef(null);
+  const heading = useId();
   useEffect(() => {
     const dialog = ref.current;
     dialog.showModal();
     return () => { if (dialog.open) dialog.close(); };
   }, []);
-  return <dialog ref={ref} className={wide ? 'dialog wide' : 'dialog'} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <div className="dialog-heading"><h2>{title}</h2><button type="button" className="icon-button" aria-label="Cerrar ventana" onClick={onClose}><X size={20} /></button></div>
+  return <dialog ref={ref} aria-labelledby={heading} className={wide ? 'dialog wide' : 'dialog'} onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <div className="dialog-heading"><h2 id={heading}>{title}</h2><button type="button" className="icon-button" aria-label="Cerrar ventana" onClick={onClose}><X size={20} /></button></div>
     <div className="dialog-body">{children}</div>
   </dialog>;
 }

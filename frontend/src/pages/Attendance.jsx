@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarCheck, Clock3, LogIn, LogOut, UserRoundCheck } from 'lucide-react';
+import { CalendarCheck, Clock3, LogIn, LogOut, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, DataTable, Dialog, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Tag } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,8 @@ export default function Attendance() {
   const absences = useResource('/asistencias/faltas', dates);
   const [workerFilter, setWorkerFilter] = useState('');
   const rows = history.data?.filter((item) => !workerFilter || item.workerId === Number(workerFilter));
+  const absenceRows = absences.data?.filter((item) => !workerFilter || item.workerId === Number(workerFilter))
+    .map((item) => ({ ...item, id: item.workerId + '/' + item.workDate }));
   const today = calendar.data?.today;
   const visible = (history.data || []).filter((item) => item.workDate === today);
   const who = Object.fromEntries((workers.data || []).map(({ worker }) => [worker.id, fullName(worker)]));
@@ -28,7 +30,7 @@ export default function Attendance() {
     { key: 'date', label: 'Fecha', render: (item) => dateLabel(item.workDate) },
     { key: 'entry', label: 'Entrada', render: (item) => timeLabel(item.entry) },
     { key: 'exit', label: 'Salida', render: (item) => item.exit ? timeLabel(item.exit) : <Tag tone="blue">En jornada</Tag> },
-    { key: 'late', label: 'Tardanza', render: (item) => item.lateMinutes ? <Tag tone="amber">{item.lateMinutes} min</Tag> : '—' },
+    { key: 'late', label: 'Estado', render: (item) => item.lateMinutes ? <Tag tone="amber" dot>Tardanza · {item.lateMinutes} min</Tag> : <Tag tone="green" dot>Presente</Tag> },
     { key: 'extra', label: 'Tiempo adicional', render: (item) => item.additionalMinutes ? `${item.additionalMinutes} min` : '—' },
     { key: 'approved', label: 'Extra aprobado', render: (item) => item.approvedMinutes ? <Tag tone="green">{item.approvedMinutes} min</Tag> : '—' },
   ];
@@ -49,9 +51,10 @@ export default function Attendance() {
     <div className="mini-metrics">
       <div><UserRoundCheck size={20} /><span>Registros de hoy</span><strong>{visible.length}</strong></div>
       <div><Clock3 size={20} /><span>Tardanzas en la selección</span><strong>{rows?.filter((item) => item.lateMinutes > 0).length || 0}</strong></div>
+      <div><UserRoundX size={20} /><span>Faltas en la selección</span><strong>{absenceRows?.length || 0}</strong></div>
       <div><CalendarCheck size={20} /><span>Horas extra aprobadas</span><strong>{hours(rows?.reduce((total, item) => total + item.approvedMinutes, 0) || 0)}</strong></div>
     </div>
-    <Section title="Historial de asistencia" icon={CalendarCheck}>
+    <Section title="Historial de asistencia" className="table-panel" icon={CalendarCheck}>
       <div className="filters dates-filter">
         <Field label="Desde"><input type="date" value={range.from} max={range.to || today} onChange={(event) => setRange({ ...range, from: event.target.value })} /></Field>
         <Field label="Hasta"><input type="date" value={range.to} min={range.from || undefined} max={today} onChange={(event) => setRange({ ...range, to: event.target.value })} /></Field>
@@ -61,11 +64,11 @@ export default function Attendance() {
       {history.loading && !history.data ? <Loading /> : <DataTable rows={rows} columns={columns} empty="No hay marcaciones para esta selección." />}
     </Section>
     <div className="section-gap">
-      <Section title="Faltas del período" icon={CalendarCheck}>
+      <Section title="Faltas del período" className="table-panel" icon={CalendarCheck}>
         {absences.loading && !absences.data ? <Loading /> : <DataTable
-          rows={absences.data?.filter((item) => !workerFilter || item.workerId === Number(workerFilter))
-            .map((item) => ({ ...item, id: item.workerId + '/' + item.workDate }))}
-          columns={[{ key: 'worker', label: 'Trabajador' }, { key: 'workDate', label: 'Fecha', render: (item) => dateLabel(item.workDate) }, { key: 'shift', label: 'Turno' }]}
+          rows={absenceRows}
+          columns={[{ key: 'worker', label: 'Trabajador' }, { key: 'workDate', label: 'Fecha', render: (item) => dateLabel(item.workDate) }, { key: 'shift', label: 'Turno' },
+            { key: 'state', label: 'Estado', render: () => <Tag tone="red" dot>Falta</Tag> }]}
           empty="No hay faltas para esta selección." />}
       </Section>
     </div>
