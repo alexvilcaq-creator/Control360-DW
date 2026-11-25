@@ -1,8 +1,8 @@
 import { Clock3, MapPin, Tags, Users } from 'lucide-react';
 import Records from '../components/Records';
-import { Tag } from '../components/ui';
+import { Tag, TextLink } from '../components/ui';
 import { useResource } from '../hooks/useResource';
-import { fullName, locationLabel } from '../services/format';
+import { fullName, matchesLocation, shelfCode } from '../services/format';
 
 const textField = (name, label, maxLength = 100) => ({ name, label, required: true, maxLength });
 const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -15,7 +15,12 @@ export function Categories() {
 export function Locations() {
   return <Records title="Ubicaciones" subtitle="Define las zonas, pasillos y estantes del almacén." singular="ubicación" icon={MapPin}
     endpoint="/ubicaciones" fields={[textField('zone', 'Zona', 20), textField('aisle', 'Pasillo', 20), textField('shelf', 'Estante', 20)]}
-    searchBy={locationLabel} columns={[{ key: 'zone', label: 'Zona' }, { key: 'aisle', label: 'Pasillo' }, { key: 'shelf', label: 'Estante' }]} />;
+    matchesSearch={matchesLocation} searchPlaceholder="Buscar por código, zona, pasillo o estante"
+    columns={[
+      { key: 'code', label: 'Código', render: (item) => <strong>{shelfCode(item)}</strong> },
+      { key: 'zone', label: 'Zona' }, { key: 'aisle', label: 'Pasillo' }, { key: 'shelf', label: 'Estante' },
+      { key: 'map', label: 'Mapa', render: (item) => <TextLink to={`/almacen?ubicacion=${item.id}`}>Ver mapa</TextLink> },
+    ]} />;
 }
 export function Shifts() {
   return <Records title="Turnos" subtitle="Configura el horario de trabajo y la tolerancia de entrada." singular="turno" icon={Clock3}

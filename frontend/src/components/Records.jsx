@@ -6,12 +6,14 @@ import { useResource } from '../hooks/useResource';
 import { post, put } from '../services/api';
 import { normalize } from '../services/format';
 
-export default function Records({ title, subtitle, singular, icon, endpoint, columns, fields, searchBy, unpack = (item) => item, dependencies = [], children }) {
+export default function Records({ title, subtitle, singular, icon, endpoint, columns, fields, searchBy, matchesSearch = (item, term) => normalize(searchBy(item)).includes(term),
+  searchPlaceholder = "Buscar registros…", unpack = (item) => item, dependencies = [], children }) {
   const resource = useResource(endpoint);
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState(null);
   const query = params.get('q') || '';
-  const filtered = resource.data?.filter((item) => normalize(searchBy(item)).includes(normalize(query).trim()));
+  const term = normalize(query).trim();
+  const filtered = resource.data?.filter((item) => matchesSearch(item, term));
   const noData = resource.loading && !resource.data;
   const formReady = dependencies.every((item) => !item.loading && !item.error);
   const columnsWithAction = [...columns, { key: 'edit', label: '', align: 'right', render: (row) =>
@@ -34,7 +36,7 @@ export default function Records({ title, subtitle, singular, icon, endpoint, col
     <ErrorNotice message={resource.error || dependencies.find((item) => item.error)?.error} retry={resource.reload} />
     {children}
     <Section title={title} icon={icon} action={<span className="result-count">{filtered?.length || 0} registros</span>}>
-      <div className="filters"><label className="input-icon"><Search size={17} /><input aria-label={`Buscar en ${title}`} placeholder="Buscar registros…" value={query} onChange={(event) => search(event.target.value)} /></label></div>
+      <div className="filters"><label className="input-icon"><Search size={17} /><input aria-label={`Buscar en ${title}`} placeholder={searchPlaceholder} value={query} onChange={(event) => search(event.target.value)} /></label></div>
       {noData ? <Loading /> : <DataTable rows={filtered} columns={columnsWithAction} empty="No hay registros que coincidan con la búsqueda." />}
     </Section>
     {edit && <Dialog title={edit.id ? `Editar ${singular}` : `Crear ${singular}`} onClose={() => setEdit(null)} wide={fields.length > 3}>

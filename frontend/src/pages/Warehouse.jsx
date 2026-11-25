@@ -5,7 +5,7 @@ import { Empty, ErrorNotice, Loading, PageTitle, Section, Tag, TextLink } from '
 import ProductPhoto from '../components/ProductPhoto';
 import { useAuth } from '../context/AuthContext';
 import { useResource } from '../hooks/useResource';
-import { locationLabel, normalize } from '../services/format';
+import { locationLabel, matchesLocation, normalize, shelfCode } from '../services/format';
 
 export default function Warehouse() {
   const { user } = useAuth();
@@ -15,7 +15,9 @@ export default function Warehouse() {
   const [query, setQuery] = useState('');
   const selected = Number(searchParams.get('ubicacion')) || null;
   const groups = new Map();
+  const locationById = new Map();
   for (const item of locations.data || []) {
+    locationById.set(item.id, item);
     if (!groups.has(item.zone)) groups.set(item.zone, []);
     groups.get(item.zone).push(item);
   }
@@ -24,10 +26,11 @@ export default function Warehouse() {
   for (const product of products.data || []) {
     counts.set(product.locationId, (counts.get(product.locationId) || 0) + 1);
   }
-  const matches = (products.data || []).filter((item) => normalize(item.name + ' ' + item.sku).includes(search));
-  const highlightIds = new Set(matches.map((item) => item.locationId));
+  const locationIds = new Set(search ? (locations.data || []).filter((item) => matchesLocation(item, search)).map((item) => item.id) : []);
+  const matches = (products.data || []).filter((item) => locationIds.has(item.locationId) || normalize(item.name + ' ' + item.sku).includes(search));
+  const highlightIds = new Set([...locationIds, ...matches.map((item) => item.locationId)]);
   const shown = selected ? matches.filter((item) => item.locationId === selected) : matches;
-  const active = locations.data?.find((item) => item.id === selected);
+  const active = locationById.get(selected);
   return <>
     <PageTitle title="Mapa del almacén" subtitle="Ubica productos y consulta existencias por zona, pasillo y estante.">
       {user.role === 'ADMIN' && <TextLink to="/ubicaciones">Gestionar ubicaciones</TextLink>}
@@ -35,7 +38,7 @@ export default function Warehouse() {
     <ErrorNotice message={locations.error || products.error} retry={() => { locations.reload(); products.reload(); }} />
     <div className="warehouse-grid">
       <Section title="Plano de ubicaciones" icon={WarehouseIcon} caption="Selecciona un estante para ver su contenido.">
-        <label className="input-icon map-search"><Search size={17} /><input aria-label="Buscar en el mapa" placeholder="Buscar un producto por nombre o código" value={query} onChange={(event) => { setQuery(event.target.value); setSearch({}); }} /></label>
+        <label className="input-icon map-search"><Search size={17} /><input aria-label="Buscar en el mapa" placeholder="Buscar por producto, SKU o ubicación (B2)" value={query} onChange={(event) => { setQuery(event.target.value); setSearch({}); }} /></label>
         {locations.loading && !locations.data ? <Loading /> : groups.size ?
           <div className="warehouse-floor">
             <div className="map-terminal"><Truck size={21} /> Recepción</div>
@@ -45,7 +48,7 @@ export default function Warehouse() {
                   <button key={item.id} type="button" className={`map-cell ${selected === item.id ? 'selected' : ''} ${search && highlightIds.has(item.id) ? 'matching' : ''}`}
                     aria-pressed={selected === item.id} onClick={() => setSearch(selected === item.id ? {} : { ubicacion: item.id })}>
                     <img src={`/images/rack-${index % 3 + 1}.webp`} alt="" width="78" height="58" loading="lazy" />
-                    <span className="map-cell-info"><strong>{zone}{item.aisle} · E{item.shelf}</strong><small>Pasillo {item.aisle}</small></span>
+                    <span className="map-cell-info"><strong>{shelfCode(item)}</strong><small>Pasillo {item.aisle}</small></span>
                     {products.data && <span className="map-cell-count" aria-label={`${counts.get(item.id) || 0} productos`}>{counts.get(item.id) || 0}</span>}
                   </button>)}
               </div></div>)}</div>
@@ -58,7 +61,7 @@ export default function Warehouse() {
         {products.loading && !products.data ? <Loading /> : shown.length ? <div className="map-products">
           {shown.map((item) => <Link key={item.id} to={`/inventario?q=${encodeURIComponent(item.sku)}`}>
             <ProductPhoto product={item} />
-            <div><strong>{item.name}</strong><small>{locationLabel(locations.data?.find((l) => l.id === item.locationId))}</small></div>
+            <div><strong>{item.name}</strong><small>{locationLabel(locationById.get(item.locationId))}</small></div>
             <Tag tone={item.quantity <= item.minStock ? 'red' : 'blue'}>{item.quantity} u.</Tag><ArrowUpRight size={15} />
           </Link>)}
         </div> : <Empty>No hay productos en esta selección.</Empty>}

@@ -17,4 +17,15 @@ export const orderCode = (id) => 'PED-' + String(id).padStart(4, '0');
 export const locationLabel = (location) => location ? `Zona ${location.zone} · Pasillo ${location.aisle} · Estante ${location.shelf}` : '—';
 export const fullName = (worker) => worker ? worker.firstName + ' ' + worker.lastName : '—';
 export const normalize = (value) => String(value ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+export const aisleCode = ({ zone, aisle }) => `${zone}${aisle}`;
+export const shelfCode = (location) => `${aisleCode(location)} · E${location.shelf}`;
+
+export function matchesLocation(location, query) {
+  const term = normalize(query).trim();
+  const compact = (value) => normalize(value).replace(/[\s.·-]+/g, '');
+  const code = compact(term);
+  return normalize(locationLabel(location)).includes(term)
+    || Boolean(code && [aisleCode(location), shelfCode(location)].some((alias) => compact(alias) === code));
+}
+
 export const hours = (minutes) => Number((minutes / 60).toFixed(1)).toLocaleString('es-PE') + ' h';
