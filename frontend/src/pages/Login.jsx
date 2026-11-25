@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, ChartNoAxesColumnIncreasing, Eye, EyeOff, Layers3, LockKeyhole, PackageCheck, Warehouse } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 import { Brand, Button, ErrorNotice, Field } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { errorMessage } from '../services/api';
@@ -19,12 +19,11 @@ export default function Login() {
   }
   return <main className="login-shell">
     <section className="login-side">
+      <img className="login-photo" src="/images/warehouse-login.webp" alt="" fetchPriority="high" />
       <Brand />
       <div className="login-intro">
-        <span className="login-emblem"><Warehouse size={42} strokeWidth={1.45} /></span>
         <h1>Tu tienda y almacén en un solo lugar.</h1>
         <p>Gestiona pedidos, consulta existencias y coordina al equipo desde tu espacio de trabajo.</p>
-        <div className="login-features"><span><PackageCheck size={18} />Pedidos</span><span><Layers3 size={18} />Inventario</span><span><ChartNoAxesColumnIncreasing size={18} />Reportes</span></div>
       </div>
       <div className="login-course">Desarrollo de Aplicaciones Web</div>
     </section>
@@ -35,9 +34,12 @@ export default function Login() {
         <p>Ingresa tus credenciales para acceder a Control360.</p>
         <form onSubmit={submit}>
           <ErrorNotice message={error} />
-          <Field label="Usuario"><input name="username" autoComplete="username" placeholder="Tu usuario" required maxLength={80} /></Field>
+          <Field label="Usuario" inputId="login-username">
+            <div className="login-input"><UserRound size={18} aria-hidden="true" /><input id="login-username" name="username" autoComplete="username" placeholder="Tu usuario" required maxLength={80} /></div>
+          </Field>
           <Field label="Contraseña" inputId="login-password">
-            <div className="password-field">
+            <div className="login-input password-field">
+              <LockKeyhole size={17} aria-hidden="true" />
               <input id="login-password" name="password" type={visible ? 'text' : 'password'} autoComplete="current-password" placeholder="Tu contraseña" required maxLength={72} />
               <button type="button" className="icon-button" aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
             </div>

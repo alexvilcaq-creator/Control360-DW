@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Activity, AlertTriangle, ArrowRight, Boxes, CalendarDays, ChartNoAxesColumnIncreasing, Clock3, Droplet, ListChecks, Package, PackagePlus, Plus, ShoppingCart, Users, UserRoundCheck, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, Boxes, CalendarDays, ChartNoAxesColumnIncreasing, Clock3, ListChecks, Package, PackagePlus, Plus, ShoppingCart, Users, UserRoundCheck, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BarPanel } from '../components/charts';
+import ProductPhoto from '../components/ProductPhoto';
 import OrderTable from '../components/OrderTable';
 import { Empty, ErrorNotice, Loading, PageTitle, Section, Tag, TextLink } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -62,7 +63,7 @@ export default function Dashboard() {
         <Section title="Alertas de bajo stock" icon={AlertTriangle} action={<TextLink to="/inventario?stock=bajo">Ver inventario</TextLink>} className="alerts-panel">
           {data.lowStock.length ? <div className="alert-list">{data.lowStock.slice(0, 3).map((product) =>
             <Link to={`/inventario?q=${encodeURIComponent(product.sku)}`} className="stock-alert" key={product.id}>
-              <span className="product-tile">{/bebida|limpieza/i.test(categoryNames[product.categoryId] || '') ? <Droplet size={18} /> : <Package size={18} />}</span>
+              <ProductPhoto product={product} />
               <span className="stock-product"><strong>{product.name}</strong><small>{categoryNames[product.categoryId] || product.sku}</small></span>
               <Tag tone="red">{product.quantity} u.</Tag><span className="stock-min muted">Mín. {product.minStock}</span><ArrowRight size={15} className="stock-arrow" />
             </Link>)}</div> : <Empty>No hay productos por debajo del mínimo.</Empty>}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Boxes, History, Package, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Boxes, History, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, DataTable, Dialog, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Tag } from '../components/ui';
+import ProductPhoto from '../components/ProductPhoto';
 import { useAuth } from '../context/AuthContext';
 import { useResource } from '../hooks/useResource';
 import { post, put } from '../services/api';
@@ -28,7 +29,7 @@ export default function Inventory() {
   function saved() { products.reload(); close(); }
 
   const columns = [
-    { key: 'product', label: 'Producto', render: (item) => <div className="entity-cell"><span className="product-tile"><Package size={17} /></span><div><strong>{item.name}</strong><small>{item.sku}</small></div></div> },
+    { key: 'product', label: 'Producto', render: (item) => <div className="entity-cell"><ProductPhoto product={item} /><div><strong>{item.name}</strong><small>{item.sku}</small></div></div> },
     { key: 'category', label: 'Categoría', render: (item) => categories.data?.find((c) => c.id === item.categoryId)?.name || '—' },
     { key: 'location', label: 'Ubicación', render: (item) => <Link className="table-link muted-link" to={`/almacen?ubicacion=${item.locationId}`}>{locationLabel(locations.data?.find((l) => l.id === item.locationId))}</Link> },
     { key: 'price', label: 'Precio', align: 'right', render: (item) => money(item.price) },
