@@ -1,0 +1,44 @@
+# Java, Spring Boot and Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.jar.original
+hs_err_pid*
+replay_pid*
+!**/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# React and Node.js
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.log
+
+# Editors and operating systems
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
