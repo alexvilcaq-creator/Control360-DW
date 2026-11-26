@@ -21,7 +21,7 @@ class OperationsTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-25T13:25:00Z"), ZoneId.of("America/Lima"));
     private static final User SELLER = new User(1L, "vendedor", "hash", Role.VENDEDOR, true, null);
     private static final User ADMIN = new User(2L, "admin", "hash", Role.ADMIN, true, null);
-    private static final Product PRODUCT = new Product(10L, "SKU", "Producto de prueba", new BigDecimal("8.25"), 2, true, 1L, 1L);
+    private static final Product PRODUCT = new Product(10L, "SKU", "Producto de prueba", new BigDecimal("8.25"), 2, true, 1L, 1L, null);
     private final Store store = mock(Store.class);
     private final Operations operations = new Operations(store, CLOCK);
 

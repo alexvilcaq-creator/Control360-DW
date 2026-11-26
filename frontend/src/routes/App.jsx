@@ -5,6 +5,9 @@ import Workspace from '../layouts/Workspace';
 import Attendance from '../pages/Attendance';
 import Dashboard from '../pages/Dashboard';
 import { Categories, Locations, Shifts, Workers } from '../pages/Directory';
+import Incidents from '../pages/Incidents';
+import PointOfSale, { PaymentHistory } from '../pages/PointOfSale';
+import StockAlerts from '../pages/StockAlerts';
 import Inventory from '../pages/Inventory';
 import Login from '../pages/Login';
 import Orders from '../pages/Orders';
@@ -44,6 +47,14 @@ export default function App() {
         <Route path="almacen" element={<Warehouse />} />
         <Route path="configuracion" element={<Settings />} />
         <Route path="asistencia" element={<Attendance />} />
+        <Route element={<Guard roles={['ADMIN', 'VENDEDOR']} />}>
+          <Route path="punto-de-venta" element={<PointOfSale />} />
+          <Route path="pagos" element={<PaymentHistory />} />
+        </Route>
+        <Route element={<Guard roles={['ADMIN', 'ALMACEN']} />}>
+          <Route path="alertas-stock" element={<StockAlerts />} />
+          <Route path="incidencias" element={<Incidents />} />
+        </Route>
         <Route element={<Guard roles={['ADMIN']} />}>
           <Route path="trabajadores" element={<Workers />} />
           <Route path="categorias" element={<Categories />} />

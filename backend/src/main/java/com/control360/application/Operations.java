@@ -98,7 +98,8 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
             String search = query == null ? "" : normalizeSearch(query).strip();
             return productViews().stream()
                     .filter(p -> normalizeSearch(p.name()).contains(search)
-                            || normalizeSearch(p.sku()).contains(search))
+                            || normalizeSearch(p.sku()).contains(search)
+                            || (p.barcode() != null && normalizeSearch(p.barcode()).contains(search)))
                     .filter(p -> category == null || category.equals(p.categoryId()))
                     .filter(p -> switch (stock == null ? "" : stock) {
                         case "bajo" -> p.lowStock();
@@ -126,18 +127,23 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
             if (value.id() != null) {
                 Inventory stock = lockedStock(value.id());
                 Product previous = required(Product.class, value.id());
-                Product saved = store.save(value);
+                String barcode = value.barcode() == null ? previous.barcode() : optionalBarcode(value.barcode());
+                Product saved = store.save(value.withBarcode(barcode));
                 if ((!previous.active() || stock.quantity() > previous.minStock()) && saved.active()
                         && stock.quantity() <= saved.minStock()) stockNotice(saved, stock.quantity());
                 return ProductView.of(saved, stock.quantity());
             }
-            Product product = store.save(value);
+            Product product = store.save(value.withBarcode(optionalBarcode(value.barcode())));
             Inventory stock = store.save(new Inventory(null, product.id(), 0));
             if (initialStock != 0)
                 stock = changeStock(product, stock, initialStock, MovementType.AJUSTE, actor, null, "Existencia inicial");
             if (product.active() && initialStock <= product.minStock()) stockNotice(product, initialStock);
             return ProductView.of(product, stock.quantity());
         });
+    }
+
+    private String optionalBarcode(String barcode) {
+        return barcode == null || barcode.isBlank() ? null : barcode.strip();
     }
 
     public ProductView adjustStock(User actor, long productId, int delta, String note) {
@@ -272,7 +278,12 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
                 if (!worker.active() || worker.shiftId() == null || !inShift(required(Shift.class, worker.shiftId()), now()))
                     throw conflict("El trabajador no está disponible en su turno");
             }
+            if (next == Status.ENTREGADO && store.paymentForOrder(order.id())
+                    .filter(payment -> payment.status() == PaymentStatus.PAGADO).isEmpty())
+                throw conflict("Registra el pago antes de entregar el pedido");
             if (next == Status.CANCELADO) {
+                store.paymentForOrder(order.id()).filter(payment -> payment.status() == PaymentStatus.PAGADO)
+                        .ifPresent(payment -> store.save(payment.annulled(actor.id(), now())));
                 List<Line> lines = store.orderLines(order.id()).stream().sorted(Comparator.comparing(Line::productId)).toList();
                 for (Line line : lines) {
                     Inventory stock = lockedStock(line.productId());
@@ -545,7 +556,8 @@ public final class Operations implements OrderUseCases, AttendanceUseCases {
             Set<Long> read = store.all(NotificationRead.class).stream().filter(n -> n.userId().equals(actor.id()))
                     .map(NotificationRead::notificationId).collect(Collectors.toSet());
             return store.all(Notification.class).stream().filter(n -> n.orderId() == null
-                            ? actor.role() != Role.VENDEDOR : orders.contains(n.orderId()))
+                            ? actor.role() == Role.ADMIN || (actor.role() == Role.ALMACEN && !n.type().equals("NUEVA_INCIDENCIA"))
+                            : orders.contains(n.orderId()))
                     .sorted(Comparator.comparing(Notification::id).reversed()).limit(35)
                     .map(n -> new NotificationView(n, read.contains(n.id()))).toList();
         });

@@ -29,7 +29,7 @@ export default function Inventory() {
   function saved() { products.reload(); close(); }
 
   const columns = [
-    { key: 'product', label: 'Producto', render: (item) => <div className="entity-cell"><ProductPhoto product={item} /><div><strong>{item.name}</strong><small>{item.sku}</small></div></div> },
+    { key: 'product', label: 'Producto', render: (item) => <div className="entity-cell"><ProductPhoto product={item} /><div><strong>{item.name}</strong><small>{item.sku}{item.barcode ? ' · ' + item.barcode : ''}</small></div></div> },
     { key: 'category', label: 'Categoría', render: (item) => categories.data?.find((c) => c.id === item.categoryId)?.name || '—' },
     { key: 'location', label: 'Ubicación', render: (item) => <Link className="table-link muted-link location-text" to={`/almacen?ubicacion=${item.locationId}`}><MapPin size={14} />{locationLabel(locations.data?.find((l) => l.id === item.locationId))}</Link> },
     { key: 'price', label: 'Precio', align: 'right', render: (item) => money(item.price) },
@@ -48,7 +48,7 @@ export default function Inventory() {
     <ErrorNotice message={products.error || categories.error || locations.error} retry={products.reload} />
     <Section title="Catálogo de productos" className="table-panel" icon={Boxes} action={<span className="result-count">{products.data?.length ?? 0} productos</span>}>
       <div className="filters">
-        <label className="input-icon"><Search size={17} /><input aria-label="Buscar productos" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setParam('q', event.target.value)} /></label>
+        <label className="input-icon"><Search size={17} /><input aria-label="Buscar productos" placeholder="Nombre, SKU o código de barras" value={query} onChange={(event) => setParam('q', event.target.value)} /></label>
         <select aria-label="Filtrar por categoría" value={category} onChange={(event) => setParam('category', event.target.value)}><option value="">Todas las categorías</option>
           {categories.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         <select aria-label="Filtrar por existencias" value={stock} onChange={(event) => setParam('stock', event.target.value)}>
@@ -85,6 +85,7 @@ function ProductForm({ item, close, saved, categories, locations }) {
       <div className="form-grid">
         <Field label="Nombre"><input name="name" defaultValue={item?.name} required maxLength={150} /></Field>
         <Field label="SKU"><input name="sku" defaultValue={item?.sku} required maxLength={60} /></Field>
+        <Field label="Código de barras"><input name="barcode" defaultValue={item?.barcode || ''} maxLength={64} /></Field>
         <Field label="Categoría"><select name="categoryId" required defaultValue={item?.categoryId || ''}><option value="">Seleccionar</option>
           {categories.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field>
         <Field label="Ubicación"><select name="locationId" required defaultValue={item?.locationId || ''}><option value="">Seleccionar</option>

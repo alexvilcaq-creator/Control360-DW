@@ -519,3 +519,56 @@ select.mini-select { min-height: 31px; padding: 5px 5px 5px 8px; font-size: 11px
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.pos-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--gap); align-items: start; }
+.pos-order { position: sticky; top: 75px; }
+.pos-filters { display: grid; gap: 8px; margin-bottom: 8px; }
+.pos-scan { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.pos-feedback:has(:empty) { min-height: 0; }
+.pos-feedback > [role="status"]:not(:empty) { display: block; color: var(--brand); font-size: 11px; padding: 2px 0 8px; }
+.pos-products { display: grid; max-height: min(58vh, 650px); overflow: auto; }
+.pos-product { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 9px; padding: 7px 0; align-items: center; border-bottom: 1px solid var(--line); }
+.pos-product > div > strong, .pos-cart-item strong { font-size: 12px; }
+.pos-product small, .pos-cart-item small { display: block; color: var(--muted); margin-top: 2px; font-size: 10px; overflow-wrap: anywhere; }
+.pos-product-end { display: flex; align-items: center; justify-content: flex-end; gap: 7px; white-space: nowrap; }
+.pos-product .product-photo { width: 40px; height: 40px; }
+.pos-add { background: var(--brand-soft); color: var(--brand); }
+.pos-cart { margin: 10px 0; }
+.pos-cart-item { display: grid; grid-template-columns: minmax(0, 1fr) 60px auto 32px; gap: 6px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+.pos-cart-item input { width: 100%; min-width: 0; }
+.pos-submit { width: 100%; margin-top: 7px; }
+.pos-result > p { display: flex; align-items: center; gap: 6px; color: var(--brand); font-weight: 670; }
+.order-payment-status { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; min-height: 38px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.order-payment-status > span:first-child { margin-right: auto; font-weight: 650; }
+.receipt-print { padding: 14px; border-radius: 9px; background: var(--surface-soft); border: 1px dashed var(--line); }
+.receipt-print h3 { font-size: 16px; font-weight: 710; }
+.receipt-print p { color: var(--muted); font-size: 11px; margin: 3px 0 10px; }
+.receipt-print dl { display: grid; grid-template-columns: fit-content(40%) 1fr; gap: 7px 14px; font-size: 12px; margin: 0; }
+.receipt-print dd { margin: 0; overflow-wrap: anywhere; }
+.receipt-print dt { color: var(--muted); }
+.incident-observation, .incident-review { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; padding: 8px 0; }
+.incident-review { background: var(--surface-soft); border-radius: 8px; padding: 9px; margin-bottom: 8px; }
+.operations-links { display: grid; gap: 7px; }
+.operations-links a { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-width: 0; padding: 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 11px; }
+.operations-links a:hover { background: var(--surface-soft); }
+.operations-links strong { color: var(--brand); white-space: nowrap; }
+.operations-links small { display: block; color: var(--muted); }
+.dashboard-commercial { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 950px) {
+  .pos-grid { grid-template-columns: minmax(0, 1fr); }
+  .pos-order { position: static; }
+  .pos-products { max-height: 265px; }
+}
+@media (max-width: 600px) {
+  .dashboard-commercial { grid-template-columns: minmax(0, 1fr); }
+  .pos-product { grid-template-columns: 35px minmax(0, 1fr) auto; gap: 5px; }
+  .pos-product .product-photo { width: 33px; height: 33px; }
+  .pos-product-end { gap: 4px; }
+}
+@media print {
+  body:has(.receipt-print) * { visibility: hidden; }
+  body:has(.receipt-print) dialog:has(.receipt-print) { border: 0; box-shadow: none; position: absolute; inset: 0; margin: 0; overflow: visible; }
+  body:has(.receipt-print) dialog::backdrop { display: none; }
+  .receipt-print, .receipt-print * { visibility: visible !important; color: #161616 !important; background: #fff !important; }
+  .receipt-print { max-width: 430px; }
+}

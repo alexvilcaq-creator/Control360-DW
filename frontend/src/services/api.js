@@ -37,3 +37,8 @@ export function errorMessage(error) {
 export const get = (path, params = {}) => api.get(path, { params }).then(({ data }) => data);
 export const post = (path, body = {}, config) => api.post(path, body, config).then(({ data }) => data);
 export const put = (path, body) => api.put(path, body).then(({ data }) => data);
+
+export function makeRequestKey() {
+  return Array.from(window.crypto.getRandomValues(new Uint8Array(16)),
+    (byte) => byte.toString(16).padStart(2, '0')).join('');
+}

@@ -283,6 +283,12 @@ class Control360MysqlIT {
                     .andExpect(status().isOk()).andExpect(jsonPath("$[0].notification.type").value("PEDIDO_LISTO"))
                     .andExpect(jsonPath("$[0].notification.orderId").value(orderId));
             mvc.perform(body(put("/api/pedidos/{id}/estado", orderId).session(sellerSession).with(csrf()), Map.of("status", "ENTREGADO")))
+                    .andExpect(status().isConflict());
+            mvc.perform(body(post("/api/pedidos/{id}/pago", orderId).session(sellerSession).with(csrf()),
+                    Map.of("method", "YAPE", "confirmed", false))).andExpect(status().isBadRequest());
+            mvc.perform(body(post("/api/pedidos/{id}/pago", orderId).session(sellerSession).with(csrf()),
+                    Map.of("method", "YAPE", "confirmed", true))).andExpect(status().isCreated());
+            mvc.perform(body(put("/api/pedidos/{id}/estado", orderId).session(sellerSession).with(csrf()), Map.of("status", "ENTREGADO")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.history.length()").value(5));
             assertEquals(8, store.inventory(product, false).orElseThrow().quantity());
         } finally {
@@ -322,6 +328,94 @@ class Control360MysqlIT {
         mvc.perform(post("/api/notificaciones/leer").session(administrator).with(csrf())).andExpect(status().isNoContent());
         mvc.perform(get("/api/notificaciones").session(administrator)).andExpect(jsonPath("$[0].read").value(true));
         mvc.perform(get("/api/notificaciones").session(first)).andExpect(jsonPath("$[0].read").value(false));
+    }
+
+    @Test
+    void catalogFindsBarcodeAndCashPaymentIsIdempotentAndIndependentFromStock() throws Exception {
+        var administrator = login(admin);
+        var vendor = login(seller);
+        var warehouse = login(picker);
+        var productBody = new java.util.HashMap<>(product("8.25", true));
+        String barcode = "000" + tag;
+        productBody.put("barcode", barcode);
+        long productId = parse(mvc.perform(body(post("/api/productos").session(administrator).with(csrf()), productBody))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.barcode").value(barcode)).andReturn()).get("id").asLong();
+        mvc.perform(body(put("/api/productos/{id}", productId).session(administrator).with(csrf()), product("8.25", true)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.barcode").value(barcode));
+        mvc.perform(get("/api/productos").session(vendor).param("q", barcode)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(productId));
+        long order = createOrder(vendor, productId, 3);
+        mvc.perform(get("/api/pedidos/{id}/pago", order).session(warehouse)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/pagos").session(warehouse)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/pedidos/{id}/pago", order).session(vendor)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDIENTE"));
+        mvc.perform(body(post("/api/pedidos/{id}/pago", order).session(vendor).with(csrf()),
+                Map.of("method", "EFECTIVO", "received", 24))).andExpect(status().isBadRequest());
+        long expectedId = -1;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var paid = parse(mvc.perform(body(post("/api/pedidos/{id}/pago", order).session(vendor).with(csrf()),
+                    Map.of("method", "EFECTIVO", "received", 30))).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.payment.orderId").value(order)).andExpect(jsonPath("$.payment.amount").value(24.75))
+                    .andExpect(jsonPath("$.payment.cashChange").value(5.25)).andReturn());
+            long paidId = paid.get("payment").get("id").asLong();
+            if (attempt == 0) expectedId = paidId;
+            else assertEquals(expectedId, paidId);
+        }
+        mvc.perform(body(post("/api/pedidos/{id}/pago", order).session(vendor).with(csrf()),
+                Map.of("method", "PLIN", "confirmed", true))).andExpect(status().isConflict());
+        mvc.perform(get("/api/pagos").session(vendor)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].status").value("PAGADO"));
+        assertEquals(7, store.inventory(productId, false).orElseThrow().quantity());
+        assertEquals(Status.PENDIENTE, store.find(Order.class, order).orElseThrow().status());
+
+        mvc.perform(body(put("/api/pedidos/{id}/estado", order).session(vendor).with(csrf()), Map.of("status", "CANCELADO")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/pedidos/{id}/pago", order).session(vendor)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ANULADO")).andExpect(jsonPath("$.payment.voidedBy").value(seller.id()));
+        assertEquals(10, store.inventory(productId, false).orElseThrow().quantity());
+        mvc.perform(body(post("/api/pedidos/{id}/pago", order).session(vendor).with(csrf()),
+                Map.of("method", "EFECTIVO", "received", 30))).andExpect(status().isConflict());
+    }
+
+    @Test
+    void warehouseStockAlertsAndIncidentsUseRealInventoryAndEnforceRoles() throws Exception {
+        var administrator = login(admin);
+        var vendor = login(seller);
+        var warehouse = login(picker);
+        var otherWarehouse = login(secondPicker);
+        long productId = createProduct(administrator).get("id").asLong();
+        mvc.perform(get("/api/productos").session(warehouse).param("q", tag).param("stock", "bajo"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+
+        mvc.perform(body(post("/api/inventario/{id}/ajustes", productId).session(administrator).with(csrf()),
+                Map.of("delta", -10, "note", "Recuento para la prueba"))).andExpect(status().isCreated());
+        mvc.perform(get("/api/productos").session(warehouse).param("q", tag).param("stock", "bajo"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].quantity").value(0))
+                .andExpect(jsonPath("$[0].minStock").value(2)).andExpect(jsonPath("$[0].locationId").value(location.id()));
+
+        var report = Map.of("productId", productId, "type", "PRODUCTO_AGOTADO", "observation", "Estante vacío", "requestKey", UUID.randomUUID().toString());
+        long incident = parse(mvc.perform(body(post("/api/incidencias").session(warehouse).with(csrf()), report))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDIENTE")).andReturn()).get("id").asLong();
+        mvc.perform(body(post("/api/incidencias").session(warehouse).with(csrf()), report))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(incident));
+        mvc.perform(get("/api/incidencias").session(warehouse)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/incidencias").session(otherWarehouse)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/incidencias").session(vendor)).andExpect(status().isForbidden());
+        mvc.perform(body(put("/api/incidencias/{id}", incident).session(warehouse).with(csrf()),
+                Map.of("status", "RESUELTA", "note", "Revisado"))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/notificaciones").session(administrator)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].notification.type").value("NUEVA_INCIDENCIA"));
+
+        mvc.perform(body(put("/api/incidencias/{id}", incident).session(administrator).with(csrf()),
+                Map.of("status", "EN_REVISION", "note", "Validando ubicación"))).andExpect(status().isOk());
+        mvc.perform(body(put("/api/incidencias/{id}", incident).session(administrator).with(csrf()),
+                Map.of("status", "RESUELTA", "note", "Conteo comprobado"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewer").value(admin.username())).andExpect(jsonPath("$.reviewNote").value("Conteo comprobado"));
+        mvc.perform(get("/api/incidencias").session(warehouse)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("RESUELTA"));
+        mvc.perform(body(post("/api/inventario/{id}/ajustes", productId).session(warehouse).with(csrf()),
+                Map.of("delta", 1, "note", "No autorizado"))).andExpect(status().isForbidden());
+        assertEquals(0, store.inventory(productId, false).orElseThrow().quantity());
     }
 
     private int accept(MockHttpSession session, long id) throws Exception {

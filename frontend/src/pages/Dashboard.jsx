@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, AlertTriangle, ArrowRight, Boxes, CalendarDays, ChartNoAxesColumnIncreasing, Clock3, PackagePlus, Plus, ShoppingCart, Users, UserRoundCheck, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, Boxes, CalendarDays, ChartNoAxesColumnIncreasing, Clock3, CreditCard, PackagePlus, Plus, ShoppingCart, Users, UserRoundCheck, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Metric from '../components/DashboardMetric';
 import { BarPanel } from '../components/charts';
@@ -20,6 +20,10 @@ export default function Dashboard() {
   const categories = useResource('/categorias');
   const inventory = useResource(byValue ? '/productos' : null);
   const team = useResource('/trabajadores', {}, 25000);
+  const payments = useResource('/pagos', {}, 25000);
+  const incidents = useResource('/incidencias', {}, 25000);
+  const paidToday = payments.data?.filter((item) => item.status === 'PAGADO' && item.payment.recordedAt.slice(0, 10) === selected);
+  const openIncidents = incidents.data?.filter((item) => ['PENDIENTE', 'EN_REVISION'].includes(item.status)).length;
   const countAvailable = team.data?.filter((item) => item.available).length;
   const data = dashboard.data;
   const attendance = data?.attendance;
@@ -87,13 +91,22 @@ export default function Dashboard() {
         </Section>
         <Section title="Acciones rápidas" icon={Zap}>
           <div className="quick-grid">
-            <Quick to="/pedidos?nuevo=1" icon={Plus} title="Registrar pedido" tone="teal" />
+            <Quick to="/punto-de-venta" icon={Plus} title="Abrir punto de venta" tone="teal" />
             <Quick to="/inventario?nuevo=1" icon={PackagePlus} title="Ingresar producto" tone="green" />
             <Quick to="/trabajadores" icon={Users} title="Gestionar equipo" tone="purple" />
             <Quick to="/asistencia?marcar=1" icon={UserRoundCheck} title="Marcar asistencia" tone="teal" />
           </div>
         </Section>
       </div>
+      <Section title="Cobros e incidencias" icon={CreditCard}>
+        <ErrorNotice message={payments.error || incidents.error} retry={() => { payments.reload(); incidents.reload(); }} />
+        <div className="operations-links dashboard-commercial">
+          <Link to="/pagos"><span>Cobros de la fecha <small>{paidToday?.length ?? '—'} pagos vigentes</small></span>
+            <strong>{paidToday ? money(paidToday.reduce((sum, item) => sum + item.payment.amount, 0)) : '—'}</strong></Link>
+          <Link to="/incidencias">Incidencias abiertas <strong>{openIncidents ?? '—'}</strong></Link>
+          <Link to="/alertas-stock">Alertas de stock <strong>{data.lowStockCount}</strong></Link>
+        </div>
+      </Section>
     </>}
   </>;
 }

@@ -2,12 +2,13 @@
 
 1. Inicia la API y React con una base de demostración, según el README.
 2. En **Resumen**, comprueba los pedidos recientes, el inventario por categoría, las alertas de stock y el resumen de asistencia. Cambia la fecha y observa cómo se actualizan los pedidos de ese día.
-3. Como vendedor, registra un cliente y un pedido. Busca un producto con stock suficiente, elige una cantidad y verifica el total. Apunta el código `PED-…`.
+3. Como vendedor, abre **Punto de venta**, selecciona un cliente y enfoca **Código de barras**. Escanea o escribe `2000000000015` y pulsa Enter. Agrega otro producto, cambia una cantidad, verifica el total y confirma. Apunta el código `PED-…`.
 4. Como trabajador de almacén, localiza el pedido pendiente. Acepta el pedido, consulta la ubicación de cada producto, inicia la preparación y márcalo como listo. Confirma que el historial registra cada paso.
-5. Como vendedor, confirma la entrega. Como administrador, consulta el movimiento de reserva. Si cancelas otro pedido pendiente, consulta el movimiento de devolución.
+5. Como vendedor, abre el pedido listo y registra un cobro en efectivo. Ingresa un importe mayor al total para ver el cambio. Abre el comprobante en **Historial de pagos** y confirma la entrega desde **Pedidos**. Como administrador, consulta el movimiento de reserva.
 6. En **Almacén**, busca un SKU y selecciona el estante resaltado. Verifica que se muestran los productos y sus existencias.
 7. Registra una entrada y una salida válidas. Las marcaciones dependen del turno y de la hora del servidor. Para ver la aprobación de tiempo extra sin esperar al fin del turno, consulta las asistencias del día anterior incluidas en la base de demostración.
-8. Consulta las estadísticas en **Reportes**, filtra el intervalo y marca los avisos como leídos desde la barra superior.
+8. Como trabajador de almacén, abre **Alertas de stock** y reporta una incidencia de un producto. Abre el aviso con la cuenta administradora, revisa el reporte y registra una nota al resolverlo. Después consulta el estado desde la cuenta del trabajador.
+9. Consulta las estadísticas en **Reportes**, filtra el intervalo y marca los avisos como leídos desde la barra superior.
 
 ## Cómo explicar Spring Boot en la exposición
 

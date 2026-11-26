@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ArrowRight, ClipboardList, MapPin, Plus, Search, ShoppingCart, Trash2, UserPlus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import PaymentDialog, { PaymentTag } from '../components/PaymentDialog';
 import OrderProgress from '../components/OrderProgress';
 import OrderTable from '../components/OrderTable';
 import { Button, DataTable, Dialog, Empty, ErrorNotice, Field, FormSubmit, Loading, PageTitle, Section, Status } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useResource } from '../hooks/useResource';
-import { errorMessage, post, put } from '../services/api';
+import { errorMessage, makeRequestKey, post, put } from '../services/api';
 import { dateLabel, fullName, locationLabel, money, normalize, orderCode, statusName, timeLabel } from '../services/format';
 
 export default function Orders() {
@@ -59,8 +60,7 @@ export default function Orders() {
 function NewOrder({ close, saved }) {
   const customers = useResource('/clientes');
   const products = useResource('/productos', { stock: 'activo' });
-  const [requestKey] = useState(() => Array.from(window.crypto.getRandomValues(new Uint8Array(16)),
-    (byte) => byte.toString(16).padStart(2, '0')).join(''));
+  const [requestKey] = useState(makeRequestKey);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState('');
   const [productId, setProductId] = useState('');
@@ -141,6 +141,8 @@ const nextStates = {
 const actionLabels = { ACEPTADO: 'Aceptar pedido', EN_PREPARACION: 'Iniciar preparación', LISTO: 'Marcar como listo', ENTREGADO: 'Confirmar entrega', CANCELADO: 'Cancelar pedido' };
 
 function OrderDetail({ id, close, reload, user }) {
+  const payment = useResource(user.role === 'ALMACEN' ? null : `/pedidos/${id}/pago`);
+  const [paying, setPaying] = useState(false);
   const record = useResource(`/pedidos/${id}`);
   const products = useResource('/productos');
   const locations = useResource('/ubicaciones');
@@ -160,15 +162,24 @@ function OrderDetail({ id, close, reload, user }) {
     try {
       if (status === 'ACEPTADO') await post(`/pedidos/${id}/aceptar`, targetWorker ? { workerId: Number(targetWorker) } : {});
       else await put(`/pedidos/${id}/estado`, { status });
-      record.reload(); reload(); setCancelPrompt(false);
+      record.reload(); payment.reload(); reload(); setCancelPrompt(false);
     } catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(false); }
   }
-  return <Dialog title={orderCode(id)} onClose={close} wide>
+  return <>
+    <Dialog title={orderCode(id)} onClose={close} wide>
     <ErrorNotice message={error || record.error || products.error || locations.error || allowedWorkers.error} retry={record.error ? record.reload : undefined} />
     {record.loading && !order ? <Loading /> : order && <>
       <div className="detail-summary"><div><strong>{record.data.customer}</strong><small>{dateLabel(order.createdAt)} · {timeLabel(order.createdAt)}{assigned ? ' · ' + fullName(assigned) : ''}</small></div><Status value={order.status} /></div>
       <OrderProgress status={order.status} />
+      {user.role !== 'ALMACEN' && <div className="order-payment-status">
+        <span>Pago</span>
+        {payment.data?.status === 'PENDIENTE' && order.status === 'ENTREGADO'
+          ? <span className="muted">Sin cobro registrado</span> : payment.data && <PaymentTag status={payment.data.status} />}
+        {payment.data?.payment ? <Button variant="quiet" onClick={() => setPaying(true)}>Ver comprobante</Button>
+          : payment.data?.status === 'PENDIENTE' && order.status !== 'ENTREGADO' && <Button variant="outline" onClick={() => setPaying(true)}>Cobrar pedido</Button>}
+      </div>}
+      <ErrorNotice message={payment.error} retry={payment.reload} />
       <DataTable rows={record.data.items} columns={[
         { key: 'product', label: 'Producto', render: (item) => products.data?.find((p) => p.id === item.productId)?.name || `Producto #${item.productId}` },
         { key: 'location', label: 'Ubicación', render: (item) => {
@@ -193,8 +204,10 @@ function OrderDetail({ id, close, reload, user }) {
         <div className="dialog-actions"><Button variant="outline" onClick={() => setCancelPrompt(false)}>Volver</Button>
           <Button variant="destructive" disabled={busy} onClick={() => transition('CANCELADO')}>Confirmar cancelación</Button></div></div>
         : next.length > 0 && <div className="dialog-actions">{[...next].reverse().map((state) => <Button key={state} icon={state === 'CANCELADO' ? undefined : ArrowRight}
-          variant={state === 'CANCELADO' ? 'outline' : 'primary'} disabled={busy || record.loading || (state === 'ACEPTADO' && user.role === 'ADMIN' && !targetWorker)}
+          variant={state === 'CANCELADO' ? 'outline' : 'primary'} disabled={busy || record.loading || (state === 'ENTREGADO' && payment.data?.status !== 'PAGADO') || (state === 'ACEPTADO' && user.role === 'ADMIN' && !targetWorker)}
           onClick={() => state === 'CANCELADO' ? setCancelPrompt(true) : transition(state)}>{actionLabels[state]}</Button>)}</div>}
     </>}
-  </Dialog>;
+    </Dialog>
+    {paying && <PaymentDialog orderId={id} close={() => setPaying(false)} onPaid={payment.reload} />}
+  </>;
 }

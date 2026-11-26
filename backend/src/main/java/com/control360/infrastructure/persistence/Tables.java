@@ -167,10 +167,11 @@ public final class Tables {
         private boolean active;
         private Long categoryId;
         private Long locationId;
+        private String barcode;
 
         @Override
         Product toDomain() {
-            return new Product(id, sku, name, price, minStock, active, categoryId, locationId);
+            return new Product(id, sku, name, price, minStock, active, categoryId, locationId, barcode);
         }
 
         @Override
@@ -182,6 +183,7 @@ public final class Tables {
             active = value.active();
             categoryId = value.categoryId();
             locationId = value.locationId();
+            barcode = value.barcode();
         }
     }
 
@@ -477,6 +479,81 @@ public final class Tables {
             requestKey = value.requestKey();
             fingerprint = value.fingerprint();
             orderId = value.orderId();
+        }
+    }
+    @Entity(name = "PaymentRow")
+    @Table(name = "order_payments")
+    public static class PaymentRow extends Row<Payment> {
+        private Long orderId;
+        private Long cashierId;
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        private PaymentMethod method;
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        private PaymentStatus status;
+        private BigDecimal amount;
+        private BigDecimal cashReceived;
+        private BigDecimal cashChange;
+        private LocalDateTime recordedAt;
+        private Long voidedBy;
+        private LocalDateTime voidedAt;
+
+        @Override
+        Payment toDomain() {
+            return new Payment(id, orderId, cashierId, method, status, amount, cashReceived, cashChange, recordedAt, voidedBy, voidedAt);
+        }
+
+        @Override
+        void copyFrom(Payment value) {
+            orderId = value.orderId();
+            cashierId = value.cashierId();
+            method = value.method();
+            status = value.status();
+            amount = value.amount();
+            cashReceived = value.cashReceived();
+            cashChange = value.cashChange();
+            recordedAt = value.recordedAt();
+            voidedBy = value.voidedBy();
+            voidedAt = value.voidedAt();
+        }
+    }
+
+    @Entity(name = "IncidentRow")
+    @Table(name = "inventory_incidents")
+    public static class IncidentRow extends Row<Incident> {
+        private Long reporterId;
+        private Long productId;
+        private String requestKey;
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        private IncidentType type;
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        private IncidentStatus status;
+        private String observation;
+        private LocalDateTime createdAt;
+        private Long reviewerId;
+        private String reviewNote;
+        private LocalDateTime reviewedAt;
+
+        @Override
+        Incident toDomain() {
+            return new Incident(id, reporterId, productId, requestKey, type, status, observation, createdAt, reviewerId, reviewNote, reviewedAt);
+        }
+
+        @Override
+        void copyFrom(Incident value) {
+            reporterId = value.reporterId();
+            productId = value.productId();
+            requestKey = value.requestKey();
+            type = value.type();
+            status = value.status();
+            observation = value.observation();
+            createdAt = value.createdAt();
+            reviewerId = value.reviewerId();
+            reviewNote = value.reviewNote();
+            reviewedAt = value.reviewedAt();
         }
     }
 }

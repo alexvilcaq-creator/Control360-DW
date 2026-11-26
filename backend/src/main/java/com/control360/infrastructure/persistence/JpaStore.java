@@ -5,6 +5,7 @@ import com.control360.domain.Models.*;
 import com.control360.domain.RuleViolation;
 import com.control360.infrastructure.persistence.Tables.*;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -39,6 +40,8 @@ public class JpaStore implements Store {
             entry(Line.class, new Mapping<>(LineRow.class, LineRow::new, Line::id)),
             entry(History.class, new Mapping<>(HistoryRow.class, HistoryRow::new, History::id)),
             entry(AttendanceAudit.class, new Mapping<>(AttendanceAuditRow.class, AttendanceAuditRow::new, AttendanceAudit::id)),
+            entry(Payment.class, new Mapping<>(PaymentRow.class, PaymentRow::new, Payment::id)),
+            entry(Incident.class, new Mapping<>(IncidentRow.class, IncidentRow::new, Incident::id)),
             entry(Attendance.class, new Mapping<>(AttendanceRow.class, AttendanceRow::new, Attendance::id)),
             entry(Notification.class, new Mapping<>(NotificationRow.class, NotificationRow::new, Notification::id)),
             entry(NotificationRead.class, new Mapping<>(NotificationReadRow.class, NotificationReadRow::new, NotificationRead::id))
@@ -158,5 +161,24 @@ public class JpaStore implements Store {
     @Override
     public List<History> orderHistory(long orderId) {
         return histories.findByOrderIdOrderById(orderId).stream().map(Row::toDomain).toList();
+    }
+    @Override
+    public Optional<Payment> paymentForOrder(long orderId) {
+        return entityManager.createQuery("select p from PaymentRow p where p.orderId = :id", PaymentRow.class)
+                .setParameter("id", orderId).getResultList().stream().findFirst().map(Row::toDomain);
+    }
+
+    @Override
+    public Optional<Incident> incidentByRequest(long reporterId, String key) {
+        return entityManager.createQuery("""
+                select i from IncidentRow i where i.reporterId = :reporter and i.requestKey = :key
+                """, IncidentRow.class).setParameter("reporter", reporterId).setParameter("key", key)
+                .getResultList().stream().findFirst().map(Row::toDomain);
+    }
+
+    @Override
+    public Optional<Incident> lockIncident(long id) {
+        IncidentRow row = entityManager.find(IncidentRow.class, id, LockModeType.PESSIMISTIC_WRITE);
+        return Optional.ofNullable(row).map(Row::toDomain);
     }
 }

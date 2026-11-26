@@ -26,8 +26,8 @@ final class Dtos {
                        @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal price,
                        @NotNull @PositiveOrZero Integer minStock, @NotNull Boolean active,
                        @NotNull @Positive Long categoryId, @NotNull @Positive Long locationId,
-                       @PositiveOrZero Integer initialStock) {
-        Product toDomain(Long id) { return new Product(id, sku.strip(), name.strip(), price, minStock, active, categoryId, locationId); }
+                       @PositiveOrZero Integer initialStock, @Size(max = 64) String barcode) {
+        Product toDomain(Long id) { return new Product(id, sku.strip(), name.strip(), price, minStock, active, categoryId, locationId, barcode); }
         int openingBalance() { return initialStock == null ? 0 : initialStock; }
     }
     record Adjustment(@NotNull Integer delta, @NotBlank @Size(max = 250) String note) {}

@@ -84,7 +84,7 @@ export default function Workspace() {
                   const content = <><span className={`notice-dot ${read ? 'read' : ''}`} /><div><strong>{item.title}</strong><p>{item.message}</p><small>{dateLabel(item.createdAt)} · {timeLabel(item.createdAt)}</small></div></>;
                   return item.orderId
                     ? <Link className="notification-item" key={item.id} to={`/pedidos?pedido=${item.orderId}`}>{content}</Link>
-                    : <Link className="notification-item" key={item.id} to="/inventario?stock=bajo">{content}</Link>;
+                    : <Link className="notification-item" key={item.id} to={item.type === 'NUEVA_INCIDENCIA' ? '/incidencias' : '/inventario?stock=bajo'}>{content}</Link>;
                 })}
               </div> : <Empty>No tienes notificaciones.</Empty>}
             </section>}

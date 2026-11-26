@@ -83,6 +83,10 @@ erDiagram
     WORKERS o|--o{ ORDERS : prepara
     ORDERS ||--|{ ORDER_LINES : contiene
     PRODUCTS ||--o{ ORDER_LINES : incluye
+    ORDERS ||--o| ORDER_PAYMENTS : cobra
+    APP_USERS ||--o{ ORDER_PAYMENTS : registra
+    PRODUCTS ||--o{ INVENTORY_INCIDENTS : refiere
+    APP_USERS ||--o{ INVENTORY_INCIDENTS : reporta
     ORDERS ||--o{ ORDER_HISTORY : conserva
     APP_USERS ||--o{ ORDER_HISTORY : modifica
     ORDERS o|--o{ STOCK_MOVEMENTS : origina
@@ -150,8 +154,8 @@ El [guion de la exposición](docs/demostracion.md) recorre el flujo de trabajo c
 | Rol | Funciones |
 | --- | --- |
 | Administrador | Gestiona usuarios, catálogo, existencias, ubicaciones, pedidos, trabajadores y turnos. Registra y corrige asistencia, aprueba minutos extra y consulta reportes. |
-| Vendedor | Registra clientes y pedidos. Consulta existencias, sigue sus pedidos, cancela los pendientes y confirma entregas listas. Marca entrada y salida y consulta su historial personal. |
-| Trabajador de almacén | Consulta pedidos pendientes y asignados. Acepta y prepara pedidos durante su turno, consulta el plano y registra su asistencia. |
+| Vendedor | Registra clientes, pedidos y cobros. Consulta existencias, sigue sus pedidos, cancela los pendientes y confirma entregas listas y pagadas. Marca entrada y salida y consulta su historial personal. |
+| Trabajador de almacén | Consulta pedidos pendientes y asignados. Acepta y prepara pedidos durante su turno, consulta el plano y las alertas de existencias, reporta incidencias y registra su asistencia. |
 
 Los permisos se verifican en Spring Security y, para objetos como pedidos o asistencias individuales, en los casos de uso. El hash BCrypt se guarda en la base y nunca se devuelve en los DTO de usuario.
 
@@ -160,6 +164,15 @@ Todos ingresan por la misma pantalla. El backend identifica el rol en la sesión
 Para dar de alta a un empleado, crea su ficha en **Trabajadores**, asígnale un turno y vincula esa ficha a la cuenta desde **Usuarios**. Si un vendedor de una instalación anterior aún no tiene ficha vinculada, el administrador puede enlazarla sin cambiar su contraseña.
 
 En **Asistencia**, el administrador puede elegir **Corregir** e indicar un motivo. La auditoría registra el usuario, la fecha y los valores anteriores y posteriores de la marcación y las aprobaciones. Las horas se interpretan en `APP_ZONE`. Una corrección puede reducir los minutos aprobados si la nueva salida genera menos tiempo adicional.
+
+## Punto de venta, cobros e incidencias
+
+- En **Punto de venta**, selecciona al cliente. Puedes agregar productos desde el catálogo o enfocar el campo **Código de barras** y escanear con un lector USB configurado como teclado con sufijo Enter. También puedes escribir el código y pulsar Enter. La búsqueda acepta SKU, nombre o código de barras.
+- En una base de demostración nueva, `2000000000015` corresponde al agua mineral. En una base anterior, el administrador puede asignar códigos desde **Inventario → Editar**. También puedes probar la entrada rápida con un SKU existente como `BEB-001`.
+- **Confirmar pedido** reserva el stock y envía el pedido al flujo de almacén. **Cobrar pedido** registra efectivo y calcula el cambio, o registra una confirmación manual de tarjeta, Yape o Plin. Preparar un pedido permite pago pendiente. Confirmar su entrega exige que esté listo y pagado.
+- El historial de pagos permite abrir e imprimir el comprobante interno. Los cobros son registros académicos y el comprobante carece de valor fiscal. Una cancelación autorizada devuelve las unidades y anula el registro de cobro asociado, si existe. Los pedidos ya entregados conservan su historial.
+- En **Alertas de stock**, los productos agotados aparecen como críticos y los productos con existencias en el mínimo o por debajo aparecen con prioridad alta. **Reportar** abre el formulario con el producto seleccionado.
+- El trabajador ve sus reportes en **Incidencias**. Desde su propia vista, el administrador puede revisar, resolver o rechazar con una nota. Cualquier ajuste de saldo se hace aparte desde **Inventario**, donde queda registrado el movimiento.
 
 ## API REST
 
@@ -174,6 +187,8 @@ En **Asistencia**, el administrador puede elegir **Corregir** e indicar un motiv
 | `GET, POST /api/ubicaciones` · `PUT /api/ubicaciones/{id}` | Consultar y administrar ubicaciones |
 | `GET, POST /api/clientes` | Consultar y registrar clientes |
 | `GET, POST /api/pedidos` · `GET /api/pedidos/{id}` | Listar, registrar o consultar el detalle de un pedido |
+| `GET /api/pagos` · `GET, POST /api/pedidos/{id}/pago` | Consultar historial, estado de pago o registrar un cobro |
+| `GET, POST /api/incidencias` · `PUT /api/incidencias/{id}` | Consultar, reportar o revisar incidencias según el rol |
 | `POST /api/pedidos/{id}/aceptar` · `PUT /api/pedidos/{id}/estado` | Aceptar un pedido o cambiar su estado |
 | `GET, POST /api/trabajadores` · `PUT /api/trabajadores/{id}` | Consultar disponibilidad y administrar trabajadores |
 | `GET, POST /api/turnos` · `PUT /api/turnos/{id}` | Consultar y administrar turnos |
@@ -198,10 +213,10 @@ CREATE DATABASE control360_dw_test CHARACTER SET utf8mb4;
 GRANT ALL ON control360_dw_test.* TO 'control360'@'%';
 ```
 
-Carga las variables de conexión y ejecuta `CONTROL360_TEST_DATABASE=control360_dw_test mvn verify -Pmysql-it`. Las pruebas aplican Flyway al esquema de pruebas y crean registros con identificadores únicos. Cubren autenticación, CSRF, permisos, productos, reservas, devolución, aceptación concurrente, preparación, entrega, asistencia y reportes. Desde `frontend/`, ejecuta `npm ci && npm run build` para verificar la compilación de React.
+Carga las variables de conexión y ejecuta `CONTROL360_TEST_DATABASE=control360_dw_test mvn verify -Pmysql-it`. Las pruebas aplican Flyway al esquema de pruebas y crean registros con identificadores únicos. Cubren autenticación, permisos, búsqueda por código de barras, reservas, aceptación concurrente, preparación y entrega, idempotencia de cobros, incidencias, asistencia y reportes. Desde `frontend/`, ejecuta `npm ci && npm run build` para verificar la compilación de React.
 
 ## Limitaciones conocidas
 
 - Los turnos e inventario mostrados en reportes corresponden a la configuración vigente. Las marcaciones conservan la hora de salida programada de su jornada. Las faltas anteriores a la fecha de alta de un trabajador quedan excluidas. Las reasignaciones de turno no guardan versiones históricas.
 - Las listas y reportes están preparados para un volumen académico. La aplicación usa una instancia de backend con sesiones HTTP locales.
-- Los avisos internos se actualizan cada 20 segundos en el navegador. La aplicación cubre operaciones internas y no incluye comercio público ni pagos.
+- Los avisos internos se actualizan cada 20 segundos en el navegador. Los cobros se registran de forma manual para la demostración académica. La aplicación cubre operaciones internas.

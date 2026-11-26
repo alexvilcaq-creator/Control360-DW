@@ -43,13 +43,17 @@ public final class Models {
     }
 
     public record Product(Long id, String sku, String name, BigDecimal price, int minStock, boolean active,
-                          Long categoryId, Long locationId) {}
+                          Long categoryId, Long locationId, String barcode) {
+        public Product withBarcode(String value) {
+            return new Product(id, sku, name, price, minStock, active, categoryId, locationId, value);
+        }
+    }
     public record Inventory(Long id, Long productId, int quantity) {}
     public record ProductView(Long id, String sku, String name, BigDecimal price, int minStock, boolean active,
-                              Long categoryId, Long locationId, int quantity) {
+                              Long categoryId, Long locationId, int quantity, String barcode) {
         public static ProductView of(Product product, int quantity) {
             return new ProductView(product.id(), product.sku(), product.name(), product.price(), product.minStock(),
-                    product.active(), product.categoryId(), product.locationId(), quantity);
+                    product.active(), product.categoryId(), product.locationId(), quantity, product.barcode());
         }
 
         public boolean lowStock() {
@@ -81,6 +85,40 @@ public final class Models {
     public record Notification(Long id, String type, String title, String message, Long orderId,
                                LocalDateTime createdAt) {}
     public record NotificationRead(Long id, Long notificationId, Long userId) {}
+
+    public enum PaymentMethod { EFECTIVO, TARJETA, YAPE, PLIN }
+    public enum PaymentStatus { PENDIENTE, PAGADO, ANULADO }
+
+    public record Payment(Long id, Long orderId, Long cashierId, PaymentMethod method, PaymentStatus status,
+                          BigDecimal amount, BigDecimal cashReceived, BigDecimal cashChange, LocalDateTime recordedAt,
+                          Long voidedBy, LocalDateTime voidedAt) {
+        public Payment annulled(long actorId, LocalDateTime time) {
+            return new Payment(id, orderId, cashierId, method, PaymentStatus.ANULADO, amount,
+                    cashReceived, cashChange, recordedAt, actorId, time);
+        }
+    }
+    public record PaymentView(Long orderId, String customer, BigDecimal total, PaymentStatus status, Payment payment) {}
+
+    public enum IncidentType {
+        PRODUCTO_AGOTADO, PRODUCTO_DANADO, DIFERENCIA_INVENTARIO, PRODUCTO_NO_ENCONTRADO, UBICACION_INCORRECTA, OTRO
+    }
+    public enum IncidentStatus {
+        PENDIENTE, EN_REVISION, RESUELTA, RECHAZADA;
+
+        public boolean allows(IncidentStatus next) {
+            return switch (this) {
+                case PENDIENTE -> next == EN_REVISION || next == RESUELTA || next == RECHAZADA;
+                case EN_REVISION -> next == RESUELTA || next == RECHAZADA;
+                case RESUELTA, RECHAZADA -> false;
+            };
+        }
+    }
+    public record Incident(Long id, Long reporterId, Long productId, String requestKey, IncidentType type,
+                           IncidentStatus status, String observation, LocalDateTime createdAt,
+                           Long reviewerId, String reviewNote, LocalDateTime reviewedAt) {}
+    public record IncidentView(Long id, Long productId, String productName, String sku, String reporter,
+                               IncidentType type, IncidentStatus status, String observation, LocalDateTime createdAt,
+                               String reviewer, String reviewNote, LocalDateTime reviewedAt) {}
 
     public record LineRequest(Long productId, int quantity) {}
     public record Count(String name, long value) {}

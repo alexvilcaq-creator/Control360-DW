@@ -2,6 +2,7 @@ package com.control360;
 
 import java.time.Clock;
 import java.time.ZoneId;
+import com.control360.application.Commerce;
 import com.control360.application.Operations;
 import com.control360.application.Store;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,5 +24,9 @@ public class Control360Application {
     @Bean
     Operations operations(Store store, Clock clock) {
         return new Operations(store, clock);
+    }
+    @Bean
+    Commerce commerce(Store store, Clock clock) {
+        return new Commerce(store, clock);
     }
 }

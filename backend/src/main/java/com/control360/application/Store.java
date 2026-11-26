@@ -20,4 +20,7 @@ public interface Store {
     Optional<Worker> lockWorker(long id);
     List<Line> orderLines(long orderId);
     List<History> orderHistory(long orderId);
+    Optional<Payment> paymentForOrder(long orderId);
+    Optional<Incident> incidentByRequest(long reporterId, String key);
+    Optional<Incident> lockIncident(long id);
 }

@@ -1,4 +1,4 @@
-import { BellRing, Boxes, ClipboardList, PackageCheck, ShoppingCart, Warehouse } from 'lucide-react';
+import { AlertTriangle, BellRing, Boxes, ClipboardList, CreditCard, PackageCheck, ShoppingCart, Warehouse } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DashboardMetric from '../components/DashboardMetric';
 import OrderTable from '../components/OrderTable';
@@ -12,19 +12,22 @@ import { money } from '../services/format';
 export function SellerDashboard() {
   const orders = useResource('/pedidos', {}, 15000);
   const inventory = useResource('/productos', { stock: 'activo' });
+  const payments = useResource('/pagos', {}, 15000);
+  const paidTotal = (payments.data || []).filter((item) => item.status === 'PAGADO').reduce((total, item) => total + item.payment.amount, 0);
   const attendance = useResource('/asistencias/estado', {}, 15000);
   const rows = orders.data || [];
-  const active = rows.filter(({ order }) => !['ENTREGADO', 'CANCELADO'].includes(order.status));
+  const pending = rows.filter(({ order }) => order.status === 'PENDIENTE');
   const ready = rows.filter(({ order }) => order.status === 'LISTO');
   const delivered = rows.filter(({ order }) => order.status === 'ENTREGADO');
   const available = (inventory.data || []).filter((item) => item.quantity > 0);
   return <>
     <PageTitle title="Panel de ventas" subtitle="Registra pedidos, consulta su preparación y confirma las entregas.">
-      <Link className="button button--primary" to="/pedidos?nuevo=1"><ShoppingCart size={17} /> Nuevo pedido</Link>
+      <Link className="button button--primary" to="/punto-de-venta"><ShoppingCart size={17} /> Punto de venta</Link>
     </PageTitle>
-    <ErrorNotice message={orders.error} retry={orders.reload} />
-    {orders.data && <div className="metrics-grid staff-metrics">
-      <DashboardMetric icon={ClipboardList} tone="teal" title="Mis pedidos activos" value={active.length} label="Pendientes, en preparación o listos" to="/pedidos" />
+    <ErrorNotice message={orders.error || payments.error} retry={() => { orders.reload(); payments.reload(); }} />
+    {orders.data && <div className="metrics-grid">
+      <DashboardMetric icon={CreditCard} tone="teal" title="Total cobrado" value={payments.data ? money(paidTotal) : '—'} label="Mis pagos vigentes" to="/pagos" />
+      <DashboardMetric icon={ClipboardList} tone="amber" title="Pedidos pendientes" value={pending.length} label="Por aceptar en almacén" to="/pedidos?estado=PENDIENTE" />
       <DashboardMetric icon={BellRing} tone="amber" title="Listos para entregar" value={ready.length} label="Pendientes de confirmación" to="/pedidos?estado=LISTO" />
       <DashboardMetric icon={PackageCheck} tone="green" title="Entregados" value={delivered.length} label="Entregas confirmadas" to="/pedidos?estado=ENTREGADO" />
     </div>}
@@ -58,6 +61,9 @@ export function WarehouseDashboard() {
   const { user } = useAuth();
   const orders = useResource('/pedidos', {}, 15000);
   const attendance = useResource('/asistencias/estado', {}, 15000);
+  const stock = useResource('/productos', { stock: 'bajo' }, 15000);
+  const incidents = useResource('/incidencias', {}, 20000);
+  const openIncidents = incidents.data?.filter((item) => ['PENDIENTE', 'EN_REVISION'].includes(item.status)).length;
   const rows = orders.data || [];
   const pending = rows.filter(({ order }) => order.status === 'PENDIENTE');
   const assigned = rows.filter(({ order }) => order.warehouseWorkerId != null && order.warehouseWorkerId === user.workerId);
@@ -82,7 +88,16 @@ export function WarehouseDashboard() {
           {orders.loading && !orders.data ? <Loading /> : <OrderTable rows={assigned.slice(0, 5)} empty="Todavía no tienes pedidos asignados." />}
         </Section>
       </div>
-      <PersonalAttendance resource={attendance} />
+      <div className="staff-dashboard-side">
+        <Section title="Alertas e incidencias" icon={AlertTriangle}>
+          <ErrorNotice message={stock.error || incidents.error} retry={() => { stock.reload(); incidents.reload(); }} />
+          <div className="operations-links">
+            <Link to="/alertas-stock">Productos con alerta de stock <strong>{stock.data?.length ?? '—'}</strong></Link>
+            <Link to="/incidencias">Mis incidencias abiertas <strong>{openIncidents ?? '—'}</strong></Link>
+          </div>
+        </Section>
+        <PersonalAttendance resource={attendance} />
+      </div>
     </div>
   </>;
 }
