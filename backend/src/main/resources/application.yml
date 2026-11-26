@@ -12,6 +12,9 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:control360_dw}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
     username: ${MYSQL_USER:control360}
     password: ${MYSQL_PASSWORD}
+  flyway:
+    clean-disabled: true
+    baseline-on-migrate: false
   jpa:
     open-in-view: false
     hibernate:

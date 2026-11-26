@@ -109,11 +109,13 @@ Requisitos locales: **JDK 17**, **Maven 3.9+**, **Node.js 20.19+ o 22.12+** y **
 ### MySQL y variables de entorno
 
 1. Copia `.env.example` a `.env` si todavía no existe.
-2. Revisa el host y puerto de tu servidor. MySQL usa `3306` de forma predeterminada. Si tu instancia escucha en `3307`, configura `MYSQL_PORT=3307`.
+2. La plantilla usa `127.0.0.1:3307/control360_dw`. Si ya tienes datos, conserva tu `.env` actual y verifica el servidor y los registros antes de cambiar el puerto. Spring Boot sigue usando `3306` como valor de respaldo si se omite `MYSQL_PORT`.
 3. Configura `MYSQL_PASSWORD` y `ADMIN_PASSWORD` en `.env`. Para desarrollo puedes generar valores con `openssl rand -hex 24`. La contraseña del administrador requiere al menos 12 caracteres y un máximo de 72 bytes. Protege este archivo con `chmod 600 .env`.
-4. Para usar Docker Compose, elige también un valor para `MYSQL_ROOT_PASSWORD` y ejecuta `docker compose up -d --wait`. Para usar un MySQL existente, crea el esquema exclusivo `control360_dw` y concede al usuario de la aplicación permisos sobre ese esquema para que Flyway pueda aplicar las migraciones.
+4. Si usas un MySQL Server ya instalado, verifica el esquema `control360_dw` y usa una cuenta dedicada con permisos sobre ese esquema para las migraciones. Si eliges Docker Compose, usa un puerto libre, configura también `MYSQL_ROOT_PASSWORD` y ejecuta `docker compose up -d --wait`.
 
 El backend valida el esquema al arrancar con `ddl-auto=validate`. Flyway aplica las migraciones versionadas en `backend/src/main/resources/db/migration/`. La zona horaria de negocio se configura con `APP_ZONE`, cuyo valor inicial es `America/Lima`.
+
+La [guía de MySQL Workbench para Windows](docs/mysql-workbench.md) incluye cómo identificar la base activa, conservar datos de Docker y configurar el puerto 3307 después de verificar el destino.
 
 ### Backend
 
